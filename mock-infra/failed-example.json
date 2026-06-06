@@ -1,0 +1,13 @@
+{
+  "s3": {
+    "encryption": false,
+    "public_access": true
+  },
+  "bedrock": {
+    "logging": false,
+    "guardrails": false
+  },
+  "iam": {
+    "policy": "*"
+  }
+}

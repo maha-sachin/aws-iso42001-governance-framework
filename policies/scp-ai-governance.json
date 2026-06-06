@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyUnapprovedAIServices",
+      "Effect": "Deny",
+      "Action": ["sagemaker:*", "bedrock:*"],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:PrincipalAccount": "REPLACE_WITH_APPROVED_ACCOUNT"
+        }
+      }
+    }
+  ]
+}
