@@ -157,3 +157,64 @@ terraform plan
 ```
 
 By default, the mock infrastructure is intentionally non-compliant, so the plan outputs a failed deployment gate and remediation recommendations. Override `mock_aws_ai_infrastructure` in `terraform.tfvars` to simulate a passing environment.
+
+## Run OPA Policy Checks
+
+This project includes Open Policy Agent policies in `policies/ai-lifecycle-governance.rego`. These Rego rules evaluate mock AWS AI infrastructure definitions in `mock-infra/`.
+
+### 1. Verify OPA is installed
+
+```bash
+opa version
+```
+
+This project was tested with OPA `1.17.0` using Rego v1 syntax.
+
+### 2. Evaluate the failing example
+
+```bash
+opa eval --format pretty \
+  --data policies/ai-lifecycle-governance.rego \
+  --input mock-infra/failed-example.json \
+  "data.ai.lifecycle.governance.deny"
+```
+
+Expected result: OPA returns four policy violations:
+
+- `DG-001`: S3 buckets must use encryption.
+- `TR-001`: Bedrock invocation logging must be enabled.
+- `RAI-001`: Bedrock Guardrails must be enabled.
+- `SEC-001`: IAM policies cannot use wildcard permissions.
+
+### 3. Evaluate the passing example
+
+```bash
+opa eval --format pretty \
+  --data policies/ai-lifecycle-governance.rego \
+  --input mock-infra/passed-example.json \
+  "data.ai.lifecycle.governance.allow"
+```
+
+Expected result:
+
+```text
+true
+```
+
+### 4. Check the deployment gate directly
+
+```bash
+opa eval --format pretty \
+  --data policies/ai-lifecycle-governance.rego \
+  --input mock-infra/failed-example.json \
+  "data.ai.lifecycle.governance.allow"
+```
+
+Expected result for the failing example:
+
+```text
+false
+```
+
+Use `deny` when you want the detailed compliance findings. Use `allow` when you only need the pass/fail deployment gate decision.
+

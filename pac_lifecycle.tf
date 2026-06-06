@@ -48,16 +48,6 @@ locals {
       recommendation = "Enable S3 default encryption with AWS KMS."
     }
 
-    public_access_block = {
-      id             = "DG-002"
-      iso            = "ISO/IEC 42001 A.6.2"
-      policy         = "Data Privacy Policy"
-      rule           = "AI data stores must block public access."
-      passed         = !var.mock_aws_ai_infrastructure.s3.public_access
-      violation      = "s3.public_access is true"
-      recommendation = "Enable S3 Block Public Access for AI data buckets."
-    }
-
     invocation_logging = {
       id             = "TR-001"
       iso            = "ISO/IEC 42001 A.7.2"

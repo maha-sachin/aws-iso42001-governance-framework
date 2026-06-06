@@ -2,61 +2,66 @@ package ai.lifecycle.governance
 
 default allow := false
 
-allow {
+allow if {
   count(deny) == 0
 }
 
-deny[msg] {
+# ISO A.6.2 Data Governance
+# Rule: S3 buckets must use encryption.
+deny contains msg if {
   input.s3.encryption == false
   msg := {
     "id": "DG-001",
     "iso": "ISO/IEC 42001 A.6.2",
+    "domain": "Data Governance",
     "policy": "Data Privacy Policy",
-    "message": "S3 buckets used for AI data must use encryption.",
+    "rule": "S3 buckets must use encryption.",
+    "violation": {"s3": {"encryption": false}},
     "recommendation": "Enable S3 default encryption with AWS KMS."
   }
 }
 
-deny[msg] {
-  input.s3.public_access == true
-  msg := {
-    "id": "DG-002",
-    "iso": "ISO/IEC 42001 A.6.2",
-    "policy": "Data Privacy Policy",
-    "message": "AI data stores must block public access.",
-    "recommendation": "Enable S3 Block Public Access for AI data buckets."
-  }
-}
-
-deny[msg] {
+# ISO A.7.2 Transparency
+# Rule: Bedrock invocation logging must be enabled.
+deny contains msg if {
   input.bedrock.logging == false
   msg := {
     "id": "TR-001",
     "iso": "ISO/IEC 42001 A.7.2",
+    "domain": "Transparency",
     "policy": "Transparency Policy",
-    "message": "Bedrock invocation logging must be enabled.",
+    "rule": "Bedrock invocation logging must be enabled.",
+    "violation": {"bedrock": {"logging": false}},
     "recommendation": "Enable Bedrock invocation logging to CloudWatch Logs."
   }
 }
 
-deny[msg] {
+# ISO A.8.4 Responsible AI
+# Rule: Bedrock Guardrails must be enabled.
+deny contains msg if {
   input.bedrock.guardrails == false
   msg := {
     "id": "RAI-001",
     "iso": "ISO/IEC 42001 A.8.4",
+    "domain": "Responsible AI",
     "policy": "Responsible AI Policy",
-    "message": "Bedrock Guardrails must be enabled for generative AI workloads.",
+    "rule": "Bedrock Guardrails must be enabled.",
+    "violation": {"bedrock": {"guardrails": false}},
     "recommendation": "Attach an approved Bedrock Guardrail before deployment."
   }
 }
 
-deny[msg] {
+# Security Control
+# Rule: IAM policies cannot use wildcard permissions.
+deny contains msg if {
   input.iam.policy == "*"
   msg := {
     "id": "SEC-001",
     "iso": "Security Control",
+    "domain": "AI Security",
     "policy": "AI Security Policy",
-    "message": "IAM policies cannot use wildcard permissions.",
+    "rule": "IAM policies cannot use wildcard permissions.",
+    "violation": {"iam": {"policy": "*"}},
     "recommendation": "Replace wildcard permissions with scoped least-privilege IAM statements."
   }
 }

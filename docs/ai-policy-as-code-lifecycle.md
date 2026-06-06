@@ -33,9 +33,11 @@ The Terraform implementation computes policy violations in `pac_lifecycle.tf`. T
 Controls enforced:
 
 - `DG-001`: S3 buckets used for AI data must use encryption.
-- `DG-002`: AI data stores must block public access.
 - `TR-001`: Bedrock invocation logging must be enabled.
 - `RAI-001`: Bedrock Guardrails must be enabled.
 - `SEC-001`: IAM policies cannot use wildcard permissions.
 
 The deployment gate returns `PASS` only when all controls pass. Otherwise, the framework reports violations, recommendations, compliance score, and risk level.
+
+
+See `docs/policy-as-code.md` for the full Layer 3 Rego implementation.
