@@ -70,7 +70,39 @@ jobs:
             --input "${{ steps.scenario.outputs.input }}" \
             "data.ai.lifecycle.governance.deny"
 
-      - name: Enforce Policy-as-Code deployment gate
+      - name: A.6.2 Data Governance Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "DG-001"'
+
+      - name: A.7.2 Transparency Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "TR-001"'
+
+      - name: A.8.4 Responsible AI Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "RAI-001"'
+
+      - name: Security Control - IAM Least Privilege Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "SEC-001"'
+
+      - name: Gate Decision - Enforce Policy-as-Code Deployment Check
         run: node scripts/pac-deployment-check.mjs "${{ steps.scenario.outputs.input }}"
 
       - name: Upload compliance evidence
