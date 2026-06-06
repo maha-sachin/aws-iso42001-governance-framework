@@ -1,4 +1,4 @@
-name: AI Governance Gate
+name: Policy-as-Code Deployment Check
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: "Mock infrastructure scenario to evaluate"
+        description: "Mock AWS AI infrastructure scenario to evaluate"
         required: true
         default: "passed-example.json"
         type: choice
@@ -17,22 +17,43 @@ on:
           - failed-example.json
 
 jobs:
-  policy-as-code:
-    name: OPA Policy Evaluation
+  pac-deployment-check:
+    name: OPA/Rego Deployment Gate
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install OPA
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install OPA CLI
         run: |
           curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
           chmod +x opa
           sudo mv opa /usr/local/bin/opa
           opa version
 
-      - name: Select scenario
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.5"
+
+      - name: Terraform validate governance backend
+        working-directory: terraform
+        run: |
+          terraform init -backend=false
+          terraform fmt -check -recursive
+          terraform validate
+
+      - name: Select deployment check input
         id: scenario
         run: |
           SCENARIO="${{ github.event.inputs.scenario }}"
@@ -40,68 +61,61 @@ jobs:
             SCENARIO="passed-example.json"
           fi
           echo "input=mock-infra/$SCENARIO" >> "$GITHUB_OUTPUT"
+          echo "Evaluating mock-infra/$SCENARIO"
 
-      - name: Run detailed policy evaluation
+      - name: Evaluate OPA policy findings
         run: |
           opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
             "data.ai.lifecycle.governance.deny"
 
-      - name: Enforce deployment approval gate
-        run: |
-          RESULT=$(opa eval --format raw \
-            --data policies/ai-lifecycle-governance.rego \
-            --input "${{ steps.scenario.outputs.input }}" \
-            "data.ai.lifecycle.governance.allow")
+      - name: Enforce Policy-as-Code deployment gate
+        run: node scripts/pac-deployment-check.mjs "${{ steps.scenario.outputs.input }}"
 
-          echo "Deployment gate result: $RESULT"
-          if [ "$RESULT" != "true" ]; then
-            echo "Deployment blocked by AI governance policy."
-            exit 1
-          fi
-
-      - name: Generate compliance report
-        if: always()
-        run: node scripts/generate-compliance-report.mjs "${{ steps.scenario.outputs.input }}"
-
-      - name: Upload compliance report
+      - name: Upload compliance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-governance-compliance-report
+          name: pac-compliance-evidence
           path: reports/
 
   blocked-deployment-simulation:
-    name: Pass/Fail Deployment Simulation
+    name: Negative Control - Block Non-Compliant Deployment
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install OPA
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install OPA CLI
         run: |
           curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
           chmod +x opa
           sudo mv opa /usr/local/bin/opa
 
-      - name: Confirm failed scenario is blocked
+      - name: Verify failed example is denied
         run: |
-          RESULT=$(opa eval --format raw \
-            --data policies/ai-lifecycle-governance.rego \
-            --input mock-infra/failed-example.json \
-            "data.ai.lifecycle.governance.allow")
+          set +e
+          node scripts/pac-deployment-check.mjs mock-infra/failed-example.json
+          STATUS=$?
+          set -e
 
-          echo "Failed scenario gate result: $RESULT"
-          test "$RESULT" = "false"
+          if [ "$STATUS" -eq 0 ]; then
+            echo "Expected failed-example.json to be blocked, but it passed."
+            exit 1
+          fi
 
-      - name: Confirm passed scenario is approved
-        run: |
-          RESULT=$(opa eval --format raw \
-            --data policies/ai-lifecycle-governance.rego \
-            --input mock-infra/passed-example.json \
-            "data.ai.lifecycle.governance.allow")
+          echo "Failed scenario was correctly blocked by Policy-as-Code."
 
-          echo "Passed scenario gate result: $RESULT"
-          test "$RESULT" = "true"
+      - name: Verify passed example is approved
+        run: node scripts/pac-deployment-check.mjs mock-infra/passed-example.json

@@ -11,6 +11,8 @@
     "dashboard:build": "npm --workspace web run build",
     "opa:failed": "opa eval --format pretty --data policies/ai-lifecycle-governance.rego --input mock-infra/failed-example.json data.ai.lifecycle.governance.deny",
     "opa:passed": "opa eval --format pretty --data policies/ai-lifecycle-governance.rego --input mock-infra/passed-example.json data.ai.lifecycle.governance.allow",
-    "report": "node scripts/generate-compliance-report.mjs mock-infra/failed-example.json"
+    "report": "node scripts/generate-compliance-report.mjs mock-infra/failed-example.json",
+    "pac:check": "node scripts/pac-deployment-check.mjs mock-infra/passed-example.json",
+    "pac:check:fail": "node scripts/pac-deployment-check.mjs mock-infra/failed-example.json"
   }
 }

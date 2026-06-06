@@ -191,11 +191,73 @@ Use `deny` when you want the detailed compliance findings. Use `allow` when you 
 
 
 
+
+## CI/CD Policy-as-Code Deployment Check
+
+This project includes a GitHub Actions workflow that demonstrates Policy-as-Code as a deployment approval gate.
+
+Workflow file:
+
+- `.github/workflows/ai-governance-gate.yml`
+
+The pipeline performs these checks:
+
+1. Checks out the repository.
+2. Installs Node.js, Terraform, and the OPA CLI.
+3. Validates the Terraform governance backend in `terraform/`.
+4. Evaluates OPA/Rego policy findings against mock AWS AI infrastructure.
+5. Runs the deployment gate query: `data.ai.lifecycle.governance.allow`.
+6. Blocks deployment if OPA returns `false`.
+7. Generates compliance evidence under `reports/`.
+8. Uploads the compliance evidence as a GitHub Actions artifact.
+
+### Local Deployment Gate Commands
+
+Passing scenario:
+
+```bash
+npm run pac:check
+```
+
+Expected result:
+
+```text
+Policy-as-Code deployment gate: PASS
+Compliance score: 100%
+Violations: 0
+```
+
+Failing scenario:
+
+```bash
+npm run pac:check:fail
+```
+
+Expected result:
+
+```text
+Policy-as-Code deployment gate: FAIL
+Compliance score: 0%
+Violations: 4
+Deployment blocked by OPA/Rego policy evaluation.
+```
+
+The failing command intentionally exits with status code `1`. That is how the CI/CD pipeline blocks a non-compliant deployment.
+
+### Evidence Files
+
+The PaC deployment check writes evidence to:
+
+- `reports/pac-deployment-check.md`
+- `reports/pac-deployment-check.json`
+
+These reports contain the evaluated input, OPA policy path, pass/fail decision, compliance score, violations, and remediation guidance.
+
 ## Three-Layer Delivery Roadmap
 
 This project is organized as the enterprise AI governance platform hiring managers expect for Cloud Governance, DevSecOps, AI Governance, MLOps, and AWS AI/Bedrock roles.
 
-### Week 1 - Visualization Layer
+###  1 - Visualization Layer
 
 - React Dashboard: `web/`
 - Policy Pages: dashboard corporate governance cards and policy docs
@@ -208,7 +270,7 @@ npm install
 npm run dashboard
 ```
 
-### Week 2 - Enforcement and Reporting Layer
+###  2 - Enforcement and Reporting Layer
 
 - Real OPA/Rego evaluation: `policies/ai-lifecycle-governance.rego`
 - Compliance report generation: `scripts/generate-compliance-report.mjs`
@@ -224,7 +286,7 @@ Reports are written to:
 - `reports/compliance-report.md`
 - `reports/compliance-report.json`
 
-### Week 3 - CI/CD Governance Gate
+###  3 - CI/CD Governance Gate
 
 - GitHub Actions pipeline: `.github/workflows/ai-governance-gate.yml`
 - Pass/fail deployment simulation using `mock-infra/failed-example.json` and `mock-infra/passed-example.json`
