@@ -13,10 +13,10 @@ This framework translates corporate AI governance policies into operational cont
 
 ## Operational Policies
 
-- Data Governance: encryption at rest, encryption in transit, data classification, data retention, public access block.
-- Model Governance: approved models only, version tracking, model approval, human oversight.
-- Deployment Governance: logging enabled, guardrails enabled, security review complete, PaC gate passed.
-- Monitoring Governance: continuous compliance monitoring, audit logging, incident detection, evidence reporting.
+- Data Governance: encryption at rest, encryption in transit, data classification, data retention.
+- Model Governance: approved models only, version tracking, model approval process.
+- Deployment Governance: logging enabled, guardrails enabled, security review complete.
+- Monitoring Governance: continuous compliance monitoring, audit logging, incident detection.
 
 ## AWS AI Lifecycle Enforcement
 

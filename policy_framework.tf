@@ -52,8 +52,7 @@ locals {
         "Encryption at Rest",
         "Encryption in Transit",
         "Data Classification",
-        "Data Retention",
-        "Public Access Block"
+        "Data Retention"
       ]
     }
 
@@ -62,8 +61,7 @@ locals {
       controls = [
         "Approved Models Only",
         "Version Tracking",
-        "Model Approval Process",
-        "Human Oversight Review"
+        "Model Approval Process"
       ]
     }
 
@@ -72,8 +70,7 @@ locals {
       controls = [
         "Logging Enabled",
         "Guardrails Enabled",
-        "Security Review Complete",
-        "Policy-as-Code Gate Passed"
+        "Security Review Complete"
       ]
     }
 
@@ -82,8 +79,7 @@ locals {
       controls = [
         "Continuous Compliance Monitoring",
         "Audit Logging",
-        "Incident Detection",
-        "Compliance Evidence Reporting"
+        "Incident Detection"
       ]
     }
   }
