@@ -1,0 +1,16 @@
+{
+  "name": "aws-iso42001-governance-framework",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dashboard": "npm --workspace web run dev",
+    "dashboard:build": "npm --workspace web run build",
+    "opa:failed": "opa eval --format pretty --data policies/ai-lifecycle-governance.rego --input mock-infra/failed-example.json data.ai.lifecycle.governance.deny",
+    "opa:passed": "opa eval --format pretty --data policies/ai-lifecycle-governance.rego --input mock-infra/passed-example.json data.ai.lifecycle.governance.allow",
+    "report": "node scripts/generate-compliance-report.mjs mock-infra/failed-example.json"
+  }
+}

@@ -28,7 +28,7 @@ Each stage is represented by Terraform `null_resource` controls so the framework
 
 ## Policy-as-Code Rules
 
-The Terraform implementation computes policy violations in `pac_lifecycle.tf`. The equivalent OPA/Rego rules are stored in `policies/ai-lifecycle-governance.rego`.
+The Terraform implementation computes policy violations in `terraform/pac_lifecycle.tf`. The equivalent OPA/Rego rules are stored in `policies/ai-lifecycle-governance.rego`.
 
 Controls enforced:
 

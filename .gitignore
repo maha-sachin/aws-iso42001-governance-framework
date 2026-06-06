@@ -5,6 +5,8 @@
 crash.log
 crash.*.log
 .terraform.tfstate.lock.info
-package-lock.json
 node_modules/
 .DS_Store
+web/dist/
+reports/*.json
+reports/*.md

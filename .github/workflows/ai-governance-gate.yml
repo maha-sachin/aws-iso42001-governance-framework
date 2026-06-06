@@ -1,0 +1,107 @@
+name: AI Governance Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Mock infrastructure scenario to evaluate"
+        required: true
+        default: "passed-example.json"
+        type: choice
+        options:
+          - passed-example.json
+          - failed-example.json
+
+jobs:
+  policy-as-code:
+    name: OPA Policy Evaluation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+          opa version
+
+      - name: Select scenario
+        id: scenario
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario }}"
+          if [ -z "$SCENARIO" ]; then
+            SCENARIO="passed-example.json"
+          fi
+          echo "input=mock-infra/$SCENARIO" >> "$GITHUB_OUTPUT"
+
+      - name: Run detailed policy evaluation
+        run: |
+          opa eval --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            "data.ai.lifecycle.governance.deny"
+
+      - name: Enforce deployment approval gate
+        run: |
+          RESULT=$(opa eval --format raw \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            "data.ai.lifecycle.governance.allow")
+
+          echo "Deployment gate result: $RESULT"
+          if [ "$RESULT" != "true" ]; then
+            echo "Deployment blocked by AI governance policy."
+            exit 1
+          fi
+
+      - name: Generate compliance report
+        if: always()
+        run: node scripts/generate-compliance-report.mjs "${{ steps.scenario.outputs.input }}"
+
+      - name: Upload compliance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-governance-compliance-report
+          path: reports/
+
+  blocked-deployment-simulation:
+    name: Pass/Fail Deployment Simulation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+
+      - name: Confirm failed scenario is blocked
+        run: |
+          RESULT=$(opa eval --format raw \
+            --data policies/ai-lifecycle-governance.rego \
+            --input mock-infra/failed-example.json \
+            "data.ai.lifecycle.governance.allow")
+
+          echo "Failed scenario gate result: $RESULT"
+          test "$RESULT" = "false"
+
+      - name: Confirm passed scenario is approved
+        run: |
+          RESULT=$(opa eval --format raw \
+            --data policies/ai-lifecycle-governance.rego \
+            --input mock-infra/passed-example.json \
+            "data.ai.lifecycle.governance.allow")
+
+          echo "Passed scenario gate result: $RESULT"
+          test "$RESULT" = "true"

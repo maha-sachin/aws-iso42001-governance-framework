@@ -2,6 +2,6 @@
 
 This document maps ISO 42001 clauses to the Terraform modules in this repo.
 
-- Clause 6 — Planning: `modules/risk-management/` and `modules/ai-governance/`
-- Clause 8 — Operation: `modules/ai-safety/`, `modules/data-privacy/`
-- Clause 9 — Performance Evaluation: `modules/monitoring/`, `modules/compliance-controls/`
+- Clause 6 — Planning: `terraform/modules/risk-management/` and `terraform/modules/ai-governance/`
+- Clause 8 — Operation: `terraform/modules/ai-safety/`, `terraform/modules/data-privacy/`
+- Clause 9 — Performance Evaluation: `terraform/modules/monitoring/`, `terraform/modules/compliance-controls/`

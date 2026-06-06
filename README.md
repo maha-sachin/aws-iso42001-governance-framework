@@ -25,57 +25,26 @@ This Terraform codebase enforces AI governance, safety, and compliance controls 
 
 ```
 aws-iso42001-governance-framework/
-├── main.tf                        # Root orchestration
-├── variables.tf                   # Global variables
-├── outputs.tf                     # Framework outputs
-├── versions.tf                    # Provider constraints
-├── terraform.tfvars.example       # Example configuration
-│
-├── modules/
-│   ├── ai-governance/             # ISO 42001 §6 — Planning & Governance
-│   │   ├── main.tf
-│   │   ├── scp_policies.tf        # Service Control Policies
-│   │   ├── iam_roles.tf           # AI Officer / Reviewer roles
-│   │   └── variables.tf
-│   │
-│   ├── ai-safety/                 # ISO 42001 §8 — Operation & Safety
-│   │   ├── main.tf
-│   │   ├── bedrock_guardrails.tf  # Content & topic filtering
-│   │   ├── sagemaker_controls.tf  # Model card enforcement
-│   │   └── variables.tf
-│   │
-│   ├── risk-management/           # ISO 42001 §6.1 — Risk Assessment
-│   │   ├── main.tf
-│   │   ├── config_rules.tf        # AWS Config custom rules
-│   │   ├── security_hub.tf        # Security Hub standards
-│   │   └── variables.tf
-│   │
-│   ├── data-privacy/              # ISO 42001 §8.4 — Data for AI
-│   │   ├── main.tf
-│   │   ├── macie_config.tf        # PII detection in training data
-│   │   ├── lake_formation.tf      # Fine-grained data access
-│   │   └── variables.tf
-│   │
-│   ├── monitoring/                # ISO 42001 §9 — Performance & Monitoring
-│   │   ├── main.tf
-│   │   ├── cloudwatch_alarms.tf   # AI system drift alarms
-│   │   ├── eventbridge_rules.tf   # Compliance event routing
-│   │   └── variables.tf
-│   │
-│   └── compliance-controls/       # ISO 42001 §9.1 — Audit & Evidence
-│       ├── main.tf
-│       ├── cloudtrail.tf          # Immutable audit trail
-│       ├── athena_queries.tf      # Compliance reporting
-│       └── variables.tf
-│
-├── policies/
-│   ├── scp-ai-governance.json     # SCP: Restrict unapproved AI services
-│   ├── scp-data-boundary.json     # SCP: Data residency enforcement
-│   └── iam-ai-least-privilege.json
-│
-└── docs/
-	├── iso42001-control-mapping.md
-	└── deployment-guide.md
+├── terraform/                     # Terraform backend and governance controls
+│   ├── main.tf                    # Root orchestration
+│   ├── variables.tf               # Global variables
+│   ├── outputs.tf                 # Framework outputs
+│   ├── versions.tf                # Provider constraints
+│   ├── pac_lifecycle.tf           # Terraform-native PaC lifecycle gates
+│   ├── policy_framework.tf        # Corporate and operational policies
+│   ├── terraform.tfvars.example   # Example configuration
+│   └── modules/
+│       ├── ai-governance/         # ISO 42001 §6 — Planning & Governance
+│       ├── ai-safety/             # ISO 42001 §8 — Operation & Safety
+│       ├── risk-management/       # ISO 42001 §6.1 — Risk Assessment
+│       ├── data-privacy/          # ISO 42001 §8.4 — Data for AI
+│       ├── monitoring/            # ISO 42001 §9 — Performance & Monitoring
+│       └── compliance-controls/   # ISO 42001 §9.1 — Audit & Evidence
+├── policies/                      # OPA/Rego and AWS policy documents
+├── mock-infra/                    # Pass/fail input examples for OPA
+├── scripts/                       # Compliance report generation
+├── web/                           # React dashboard
+└── docs/                          # Governance documentation
 ```
 
 ---
@@ -86,12 +55,13 @@ aws-iso42001-governance-framework/
 # 1. Clone and configure
 git clone https://github.com/yourname/aws-iso42001-governance-framework
 cd aws-iso42001-governance-framework
-cp terraform.tfvars.example terraform.tfvars
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 
 # 2. Edit your org settings
-vim terraform.tfvars
+vim terraform/terraform.tfvars
 
 # 3. Initialize and deploy
+cd terraform
 terraform init
 terraform plan -out=governance.tfplan
 terraform apply governance.tfplan
@@ -103,21 +73,21 @@ terraform apply governance.tfplan
 
 ### Clause 6 — Planning
 
-- **6.1.2** AI Risk Assessment → `modules/risk-management/config_rules.tf`
-- **6.2** AI Objectives → `modules/ai-governance/iam_roles.tf`
+- **6.1.2** AI Risk Assessment → `terraform/modules/risk-management/config_rules.tf`
+- **6.2** AI Objectives → `terraform/modules/ai-governance/iam_roles.tf`
 
 ### Clause 8 — Operation
 
-- **8.2** AI System Impact Assessment → `modules/ai-safety/sagemaker_controls.tf`
-- **8.4** Data Acquisition & Preparation → `modules/data-privacy/macie_config.tf`
-- **8.5** AI System Design → `modules/ai-safety/bedrock_guardrails.tf`
-- **8.6** AI System Verification → `modules/monitoring/cloudwatch_alarms.tf`
+- **8.2** AI System Impact Assessment → `terraform/modules/ai-safety/sagemaker_controls.tf`
+- **8.4** Data Acquisition & Preparation → `terraform/modules/data-privacy/macie_config.tf`
+- **8.5** AI System Design → `terraform/modules/ai-safety/bedrock_guardrails.tf`
+- **8.6** AI System Verification → `terraform/modules/monitoring/cloudwatch_alarms.tf`
 
 ### Clause 9 — Performance Evaluation
 
-- **9.1** Monitoring & Measurement → `modules/monitoring/`
-- **9.2** Internal Audit → `modules/compliance-controls/cloudtrail.tf`
-- **9.3** Management Review → `modules/compliance-controls/athena_queries.tf`
+- **9.1** Monitoring & Measurement → `terraform/modules/monitoring/`
+- **9.2** Internal Audit → `terraform/modules/compliance-controls/cloudtrail.tf`
+- **9.3** Management Review → `terraform/modules/compliance-controls/athena_queries.tf`
 
 ---
 
@@ -142,8 +112,8 @@ This repository now includes a mock AWS AI lifecycle governance implementation t
 
 Key files:
 
-- `policy_framework.tf` defines corporate and operational AI policies.
-- `pac_lifecycle.tf` implements lifecycle stage gates and Terraform-native PaC evaluation.
+- `terraform/policy_framework.tf` defines corporate and operational AI policies.
+- `terraform/pac_lifecycle.tf` implements lifecycle stage gates and Terraform-native PaC evaluation.
 - `policies/ai-lifecycle-governance.rego` contains the equivalent OPA/Rego controls.
 - `mock-infra/failed-example.json` and `mock-infra/passed-example.json` provide demo input postures.
 - `docs/ai-policy-as-code-lifecycle.md` documents the governance lifecycle.
@@ -151,12 +121,13 @@ Key files:
 Run:
 
 ```bash
+cd terraform
 terraform fmt -recursive
 terraform validate
 terraform plan
 ```
 
-By default, the mock infrastructure is intentionally non-compliant, so the plan outputs a failed deployment gate and remediation recommendations. Override `mock_aws_ai_infrastructure` in `terraform.tfvars` to simulate a passing environment.
+By default, the mock infrastructure is intentionally non-compliant, so the plan outputs a failed deployment gate and remediation recommendations. Override `mock_aws_ai_infrastructure` in `terraform/terraform.tfvars` to simulate a passing environment.
 
 ## Run OPA Policy Checks
 
@@ -218,3 +189,54 @@ false
 
 Use `deny` when you want the detailed compliance findings. Use `allow` when you only need the pass/fail deployment gate decision.
 
+
+
+## Three-Layer Delivery Roadmap
+
+This project is organized as the enterprise AI governance platform hiring managers expect for Cloud Governance, DevSecOps, AI Governance, MLOps, and AWS AI/Bedrock roles.
+
+### Week 1 - Visualization Layer
+
+- React Dashboard: `web/`
+- Policy Pages: dashboard corporate governance cards and policy docs
+- AI Lifecycle Page: dashboard lifecycle module and `docs/visualization-layer.md`
+
+Run the dashboard:
+
+```bash
+npm install
+npm run dashboard
+```
+
+### Week 2 - Enforcement and Reporting Layer
+
+- Real OPA/Rego evaluation: `policies/ai-lifecycle-governance.rego`
+- Compliance report generation: `scripts/generate-compliance-report.mjs`
+
+Generate a compliance report:
+
+```bash
+npm run report
+```
+
+Reports are written to:
+
+- `reports/compliance-report.md`
+- `reports/compliance-report.json`
+
+### Week 3 - CI/CD Governance Gate
+
+- GitHub Actions pipeline: `.github/workflows/ai-governance-gate.yml`
+- Pass/fail deployment simulation using `mock-infra/failed-example.json` and `mock-infra/passed-example.json`
+- Deployment approval gate using `data.ai.lifecycle.governance.allow`
+
+## Platform Modules
+
+| Module | Capability | Implementation |
+| --- | --- | --- |
+| Module 1 | Dashboard: compliance score, violations, deployment status, risk level | `web/src/App.tsx` |
+| Module 2 | Corporate AI Governance: Responsible AI, Data Privacy, Transparency, AI Security | `terraform/policy_framework.tf`, `web/src/data.ts` |
+| Module 3 | AI Lifecycle Governance: scoping, data collection, training, validation, deployment, monitoring, retirement | `terraform/pac_lifecycle.tf`, `web/src/data.ts` |
+| Module 4 | Policy Engine: OPA, Rego, ISO 42001 controls | `policies/ai-lifecycle-governance.rego` |
+| Module 5 | CI/CD Governance Gate: GitHub Actions, policy evaluation, deployment approval | `.github/workflows/ai-governance-gate.yml` |
+| Module 6 | Compliance Reports: violations, remediation, audit evidence | `scripts/generate-compliance-report.mjs` |

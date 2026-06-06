@@ -126,4 +126,4 @@ opa eval --format pretty \
 
 ## Terraform Integration
 
-`pac_lifecycle.tf` mirrors these same four controls as Terraform-native computed policy checks. The `deployment_gate` resource and `compliance_summary` output expose pass/fail state, failed controls, compliance score, risk level, and recommendations.
+`terraform/pac_lifecycle.tf` mirrors these same four controls as Terraform-native computed policy checks. The `deployment_gate` resource and `compliance_summary` output expose pass/fail state, failed controls, compliance score, risk level, and recommendations.

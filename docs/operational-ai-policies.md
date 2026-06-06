@@ -55,6 +55,6 @@ AWS lifecycle coverage:
 
 ## Terraform Implementation
 
-These operational policies are implemented in `policy_framework.tf` as `local.operational_ai_policies` and materialized as `null_resource.operational_ai_policy` resources. The policies are exposed through the `operational_ai_policies` Terraform output.
+These operational policies are implemented in `terraform/policy_framework.tf` as `local.operational_ai_policies` and materialized as `null_resource.operational_ai_policy` resources. The policies are exposed through the `operational_ai_policies` Terraform output.
 
-The Policy-as-Code enforcement layer in `pac_lifecycle.tf` maps these operational controls to concrete deployment gates and compliance findings.
+The Policy-as-Code enforcement layer in `terraform/pac_lifecycle.tf` maps these operational controls to concrete deployment gates and compliance findings.
