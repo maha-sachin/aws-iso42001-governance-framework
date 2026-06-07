@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import failedMockInfrastructure from "../../mock-infra/failed-example.json";
+import passedMockInfrastructure from "../../mock-infra/passed-example.json";
 
 type ScenarioKey = "failed" | "passed";
 type PageKey = "Dashboard" | "Policy Framework" | "Policies (OPA)" | "AI Lifecycle" | "CI/CD Pipeline" | "Compliance Report";
@@ -12,14 +14,19 @@ type ResourceFinding = {
 };
 
 type InfrastructureInput = {
-  s3: { encryption: boolean; public_access: boolean };
-  bedrock: { logging: boolean; guardrails: boolean };
-  iam: { policy: string };
-  resources: {
-    s3Buckets: Array<{ name: string; encryption: boolean; public_access: boolean }>;
-    bedrockApps: Array<{ name: string; logging: boolean; guardrails: boolean }>;
-    iamRoles: Array<{ name: string; policy: string }>;
-  };
+  account: string;
+  account_id?: string;
+  application: string;
+  environment: string;
+  region?: string;
+  s3_buckets: Array<{ name: string; kms_key_type: "AWS_MANAGED" | "CUSTOMER_MANAGED"; public_access: boolean }>;
+  bedrock_models: Array<{ name: string; model_id: string; invocation_logging_enabled: boolean; guardrails_enabled: boolean }>;
+  iam_roles: Array<{ name: string; wildcard_permissions: boolean }>;
+};
+
+type EvaluatedInfrastructureInput = InfrastructureInput & {
+  account_id: string;
+  region: string;
 };
 
 type PolicyRule = {
@@ -32,71 +39,31 @@ type PolicyRule = {
   severity: "Critical" | "High";
   recommendation: string;
   rego: string;
-  evaluate: (input: InfrastructureInput) => boolean;
-  getFindings: (input: InfrastructureInput) => ResourceFinding[];
+  evaluate: (input: EvaluatedInfrastructureInput) => boolean;
+  getFindings: (input: EvaluatedInfrastructureInput) => ResourceFinding[];
   violation: object;
 };
 
-const scenarios: Record<ScenarioKey, { label: string; filename: string; input: InfrastructureInput }> = {
+function normalizeInfrastructureInput(input: InfrastructureInput): EvaluatedInfrastructureInput {
+  return {
+    ...input,
+    account_id: input.account_id ?? "123456789012",
+    region: input.region ?? "us-east-1"
+  };
+}
+
+const scenarios: Record<ScenarioKey, { label: string; filename: string; rawInput: InfrastructureInput; input: EvaluatedInfrastructureInput }> = {
   failed: {
     label: "Failed Example",
     filename: "mock-infra/failed-example.json",
-    input: {
-      s3: { encryption: false, public_access: true },
-      bedrock: { logging: false, guardrails: false },
-      iam: { policy: "*" },
-      resources: {
-        s3Buckets: [
-          { name: "aigov-training-data-prod", encryption: false, public_access: false },
-          { name: "aigov-prompt-logs-prod", encryption: false, public_access: true },
-          { name: "aigov-model-artifacts", encryption: true, public_access: false },
-          { name: "aigov-evidence-vault", encryption: true, public_access: false }
-        ],
-        bedrockApps: [
-          { name: "claims-assistant-bedrock", logging: false, guardrails: false },
-          { name: "customer-support-rag", logging: false, guardrails: true },
-          { name: "internal-policy-bot", logging: true, guardrails: true }
-        ],
-        iamRoles: [
-          { name: "BedrockAppExecutionRole", policy: "*" },
-          { name: "SageMakerNotebookRole", policy: "*" },
-          { name: "AIGovernanceReadOnlyRole", policy: "least-privilege" },
-          { name: "CloudWatchEvidenceRole", policy: "least-privilege" },
-          { name: "MacieClassificationRole", policy: "least-privilege" },
-          { name: "SecurityHubAuditRole", policy: "least-privilege" }
-        ]
-      }
-    }
+    rawInput: failedMockInfrastructure as InfrastructureInput,
+    input: normalizeInfrastructureInput(failedMockInfrastructure as InfrastructureInput)
   },
   passed: {
     label: "Passed Example",
     filename: "mock-infra/passed-example.json",
-    input: {
-      s3: { encryption: true, public_access: false },
-      bedrock: { logging: true, guardrails: true },
-      iam: { policy: "least-privilege" },
-      resources: {
-        s3Buckets: [
-          { name: "aigov-training-data-prod", encryption: true, public_access: false },
-          { name: "aigov-prompt-logs-prod", encryption: true, public_access: false },
-          { name: "aigov-model-artifacts", encryption: true, public_access: false },
-          { name: "aigov-evidence-vault", encryption: true, public_access: false }
-        ],
-        bedrockApps: [
-          { name: "claims-assistant-bedrock", logging: true, guardrails: true },
-          { name: "customer-support-rag", logging: true, guardrails: true },
-          { name: "internal-policy-bot", logging: true, guardrails: true }
-        ],
-        iamRoles: [
-          { name: "BedrockAppExecutionRole", policy: "least-privilege" },
-          { name: "SageMakerNotebookRole", policy: "least-privilege" },
-          { name: "AIGovernanceReadOnlyRole", policy: "least-privilege" },
-          { name: "CloudWatchEvidenceRole", policy: "least-privilege" },
-          { name: "MacieClassificationRole", policy: "least-privilege" },
-          { name: "SecurityHubAuditRole", policy: "least-privilege" }
-        ]
-      }
-    }
+    rawInput: passedMockInfrastructure as InfrastructureInput,
+    input: normalizeInfrastructureInput(passedMockInfrastructure as InfrastructureInput)
   }
 };
 
@@ -109,14 +76,15 @@ const policyRules: PolicyRule[] = [
     rule: "S3 buckets must use encryption.",
     resource: "s3",
     severity: "Critical",
-    recommendation: "Enable S3 default encryption with AWS KMS.",
-    violation: { s3: { encryption: false } },
-    evaluate: (input) => input.s3.encryption === true,
-    getFindings: (input) => input.resources.s3Buckets
-      .filter((bucket) => !bucket.encryption)
-      .map((bucket) => ({ type: "S3 Bucket", name: bucket.name, field: "encryption", currentValue: String(bucket.encryption), issue: "Bucket encryption is disabled" })),
+    recommendation: "Use customer-managed KMS keys for every evaluated S3 bucket.",
+    violation: { s3_buckets: [{ kms_key_type: "AWS_MANAGED" }] },
+    evaluate: (input) => input.s3_buckets.every((bucket) => bucket.kms_key_type === "CUSTOMER_MANAGED"),
+    getFindings: (input) => input.s3_buckets
+      .filter((bucket) => bucket.kms_key_type !== "CUSTOMER_MANAGED")
+      .map((bucket) => ({ type: "S3 Bucket", name: bucket.name, field: "kms_key_type", currentValue: bucket.kms_key_type, issue: "Bucket is not using a customer-managed KMS key" })),
     rego: `deny contains msg if {
-  input.s3.encryption == false
+  bucket := input.s3_buckets[_]
+  bucket.kms_key_type != "CUSTOMER_MANAGED"
   msg := {
     "id": "DG-001",
     "iso": "ISO/IEC 42001 A.6.2",
@@ -132,14 +100,15 @@ const policyRules: PolicyRule[] = [
     rule: "Bedrock invocation logging must be enabled.",
     resource: "bedrock",
     severity: "High",
-    recommendation: "Enable Bedrock invocation logging to CloudWatch Logs.",
-    violation: { bedrock: { logging: false } },
-    evaluate: (input) => input.bedrock.logging === true,
-    getFindings: (input) => input.resources.bedrockApps
-      .filter((app) => !app.logging)
-      .map((app) => ({ type: "Bedrock App", name: app.name, field: "logging", currentValue: String(app.logging), issue: "Invocation logging is disabled" })),
+    recommendation: "Enable Bedrock invocation logging for every evaluated model.",
+    violation: { bedrock_models: [{ invocation_logging_enabled: false }] },
+    evaluate: (input) => input.bedrock_models.every((model) => model.invocation_logging_enabled),
+    getFindings: (input) => input.bedrock_models
+      .filter((model) => !model.invocation_logging_enabled)
+      .map((model) => ({ type: "Bedrock App", name: model.name, field: "invocation_logging_enabled", currentValue: String(model.invocation_logging_enabled), issue: "Invocation logging is disabled" })),
     rego: `deny contains msg if {
-  input.bedrock.logging == false
+  model := input.bedrock_models[_]
+  model.invocation_logging_enabled == false
   msg := {
     "id": "TR-001",
     "iso": "ISO/IEC 42001 A.7.2",
@@ -155,14 +124,15 @@ const policyRules: PolicyRule[] = [
     rule: "Bedrock Guardrails must be enabled.",
     resource: "bedrock",
     severity: "High",
-    recommendation: "Attach an approved Bedrock Guardrail before deployment.",
-    violation: { bedrock: { guardrails: false } },
-    evaluate: (input) => input.bedrock.guardrails === true,
-    getFindings: (input) => input.resources.bedrockApps
-      .filter((app) => !app.guardrails)
-      .map((app) => ({ type: "Bedrock App", name: app.name, field: "guardrails", currentValue: String(app.guardrails), issue: "Bedrock Guardrails are not attached" })),
+    recommendation: "Enable Bedrock Guardrails for every evaluated model.",
+    violation: { bedrock_models: [{ guardrails_enabled: false }] },
+    evaluate: (input) => input.bedrock_models.every((model) => model.guardrails_enabled),
+    getFindings: (input) => input.bedrock_models
+      .filter((model) => !model.guardrails_enabled)
+      .map((model) => ({ type: "Bedrock App", name: model.name, field: "guardrails_enabled", currentValue: String(model.guardrails_enabled), issue: "Bedrock Guardrails are not attached" })),
     rego: `deny contains msg if {
-  input.bedrock.guardrails == false
+  model := input.bedrock_models[_]
+  model.guardrails_enabled == false
   msg := {
     "id": "RAI-001",
     "iso": "ISO/IEC 42001 A.8.4",
@@ -179,13 +149,14 @@ const policyRules: PolicyRule[] = [
     resource: "iam",
     severity: "Critical",
     recommendation: "Replace wildcard permissions with scoped least-privilege IAM statements.",
-    violation: { iam: { policy: "*" } },
-    evaluate: (input) => input.iam.policy !== "*",
-    getFindings: (input) => input.resources.iamRoles
-      .filter((role) => role.policy === "*")
-      .map((role) => ({ type: "IAM Role", name: role.name, field: "policy", currentValue: role.policy, issue: "Wildcard permissions are allowed" })),
+    violation: { iam_roles: [{ wildcard_permissions: true }] },
+    evaluate: (input) => input.iam_roles.every((role) => role.wildcard_permissions === false),
+    getFindings: (input) => input.iam_roles
+      .filter((role) => role.wildcard_permissions)
+      .map((role) => ({ type: "IAM Role", name: role.name, field: "wildcard_permissions", currentValue: String(role.wildcard_permissions), issue: "Wildcard permissions are allowed" })),
     rego: `deny contains msg if {
-  input.iam.policy == "*"
+  role := input.iam_roles[_]
+  role.wildcard_permissions == true
   msg := {
     "id": "SEC-001",
     "iso": "Security Control",
@@ -195,7 +166,7 @@ const policyRules: PolicyRule[] = [
   }
 ];
 
-const nav: PageKey[] = ["Dashboard", "Policy Framework", "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline", "Compliance Report"];
+const nav: PageKey[] = ["Dashboard",  "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline"];
 const lifecycle = ["Scoping", "Data Collection", "Training", "Validation", "Deployment", "Monitoring", "Retirement"];
 const lifecycleStages = [
   {
@@ -214,7 +185,7 @@ const lifecycleStages = [
     status: "failed",
     goal: "Ingest training data safely with encryption, lineage, and bias screening.",
     gates: [
-      ["LC-02-A", "S3 CMK Encryption Gate", "ai-training-data-prod uses AWS-managed KMS instead of a customer-managed key.", "failed"],
+      ["LC-02-A", "S3 CMK Encryption Gate", "aigov-training-data-prod uses AWS-managed KMS instead of a customer-managed key.", "failed"],
       ["LC-02-B", "Data Lineage Documentation", "Dataset source, license, and collection date are tracked.", "passed"],
       ["LC-02-C", "Bias Screening Gate", "Dataset bias_score is below or equal to 0.15.", "passed"]
     ],
@@ -260,10 +231,10 @@ const lifecycleStages = [
     status: "failed",
     goal: "Deploy to AWS only after ISO 42001 controls pass.",
     gates: [
-      ["LC-06-A", "A.6.2 Data Governance", "ai-training-data-prod violates S3 customer-managed KMS encryption.", "failed"],
-      ["LC-06-B", "A.7.2 Transparency", "internal-summarizer has Bedrock invocation logging disabled.", "failed"],
-      ["LC-06-C", "A.8.4 Responsible AI", "code-assistant has Bedrock Guardrails disabled.", "failed"],
-      ["LC-06-D", "IAM Least Privilege", "Production roles are scoped to approved AI deployment permissions.", "passed"]
+      ["LC-06-A", "A.6.2 Data Governance", "aigov-training-data-prod violates S3 customer-managed KMS encryption.", "failed"],
+      ["LC-06-B", "A.7.2 Transparency", "customer-support-rag has Bedrock invocation logging disabled.", "failed"],
+      ["LC-06-C", "A.8.4 Responsible AI", "internal-policy-bot has Bedrock Guardrails disabled.", "failed"],
+      ["LC-06-D", "IAM Least Privilege", "BedrockAppExecutionRole still allows wildcard permissions.", "failed"]
     ],
     aws: "Bedrock, SageMaker Endpoints, S3, CloudWatch, KMS",
     policies: "OP-001, OP-002, OP-003"
@@ -292,7 +263,7 @@ const lifecycleStages = [
   }
 ];
 
-function evaluatePolicies(input: InfrastructureInput) {
+function evaluatePolicies(input: EvaluatedInfrastructureInput) {
   return policyRules.map((rule) => {
     const findings = rule.getFindings(input);
     return { ...rule, findings, passed: rule.evaluate(input) && findings.length === 0 };
@@ -366,8 +337,8 @@ deny[msg] {
 
 deny[msg] {
   bucket := input.s3_buckets[_]
-  bucket.name == "ai-training-data-prod"
-  bucket.encryption.key_type != "customer_managed"
+  bucket.name == "aigov-training-data-prod"
+  bucket.kms_key_type != "CUSTOMER_MANAGED"
   msg := "LC-02-A: training data bucket must use customer-managed KMS"
 }`,
     "LC-03-C": `package lifecycle.training
@@ -399,30 +370,86 @@ function AppPage({
   setSelectedRuleId
 }: {
   page: PageKey;
-  scenario: Record<ScenarioKey, { label: string; filename: string; input: InfrastructureInput }>[ScenarioKey];
+  scenario: Record<ScenarioKey, { label: string; filename: string; rawInput: InfrastructureInput; input: EvaluatedInfrastructureInput }>[ScenarioKey];
   results: ReturnType<typeof evaluatePolicies>;
   selectedRule: ReturnType<typeof evaluatePolicies>[number];
   setSelectedRuleId: (id: string) => void;
 }) {
   const [expandedLifecycleStage, setExpandedLifecycleStage] = useState(0);
+  const [policyFilter, setPolicyFilter] = useState<"all" | "corporate" | "operational">("all");
+  const [expandedPolicyId, setExpandedPolicyId] = useState("Responsible AI Policy");
 
   if (page === "Policy Framework") {
+    const frameworkPolicies = [
+      {
+        id: "Responsible AI Policy",
+        tier: "corporate",
+        category: "Responsible AI",
+        title: "Responsible AI Policy",
+        owner: "Chief AI Officer",
+        iso: "ISO/IEC 42001:2023 A.8.4",
+        review: "Annual",
+        description: "AI systems must use safety controls, harmful content generation must be mitigated, and human oversight is required for high-risk use cases.",
+        principles: ["Bedrock Guardrails must be enabled before production deployment.", "Safety controls must reduce harmful content generation risk.", "High-risk AI use cases require human oversight.", "Responsible AI requirements are checked before deployment approval."],
+        enforcedBy: ["RAI-001"],
+        enforcement: "OPA blocks Bedrock deployments when Guardrails are disabled."
+      },
+      { id: "Data Privacy Policy", tier: "corporate", category: "Data Privacy", title: "Data Privacy Policy", owner: "Chief Data Officer", iso: "ISO/IEC 42001:2023 A.6.2", review: "Annual", description: "AI data must be encrypted, public access must be prohibited, and sensitive data must be protected throughout the AI lifecycle.", principles: ["S3 buckets storing AI data must use customer-managed KMS keys.", "Public access must be blocked for AI data stores.", "Sensitive AI data must be protected before training or inference.", "Encryption evidence must be available for audit review."], enforcedBy: ["DG-001"], enforcement: "OPA blocks S3 buckets that do not use customer-managed KMS encryption." },
+      { id: "Transparency Policy", tier: "corporate", category: "Transparency", title: "Transparency Policy", owner: "Chief Compliance Officer", iso: "ISO/IEC 42001:2023 A.7.2", review: "Annual", description: "AI interactions must be auditable. Logging is required so prompts, responses, and model invocation metadata can be reviewed.", principles: ["Bedrock invocation logging must be enabled.", "Audit evidence must be generated for AI interactions.", "Logs must be available for compliance reporting.", "Transparency controls must run before deployment approval."], enforcedBy: ["TR-001"], enforcement: "OPA blocks Bedrock deployments when invocation logging is disabled." },
+      { id: "AI Security Policy", tier: "corporate", category: "AI Security", title: "AI Security Policy", owner: "CISO", iso: "Security Control", review: "Annual", description: "AI workloads must follow least privilege access, avoid wildcard permissions, and support security monitoring.", principles: ["IAM wildcard permissions are not allowed.", "AI execution roles must be scoped to approved permissions.", "Security review is required before deployment.", "Non-compliant IAM policies are blocked in CI/CD."], enforcedBy: ["SEC-001"], enforcement: "OPA blocks IAM roles with wildcard permissions." },
+      { id: "Data Governance", tier: "operational", category: "Data Governance", title: "Data Governance Operational Controls", owner: "VP of Data Engineering", iso: "ISO/IEC 42001:2023 A.6.2", review: "Semi-Annual", description: "Operational controls enforce encryption at rest, encryption in transit, data classification, and data retention for AI data stores.", principles: ["Encryption at rest is required.", "Encryption in transit is required.", "Data classification and retention must be documented.", "S3 data stores must meet customer-managed KMS requirements."], enforcedBy: ["DG-001"], enforcement: "OPA evaluates AI data storage encryption during the deployment gate." },
+      { id: "Model Governance", tier: "operational", category: "Model Governance", title: "Model Governance Operational Controls", owner: "Head of MLOps", iso: "Lifecycle Control", review: "Semi-Annual", description: "Operational controls require approved models, version tracking, and model approval process evidence.", principles: ["Approved models only.", "Version tracking is required.", "Model approval process must be documented.", "Lifecycle dashboard tracks model governance stage status."], enforcedBy: [], enforcement: "Model governance is represented in the AI Lifecycle PaC view." },
+      { id: "Deployment Governance", tier: "operational", category: "Deployment Governance", title: "Deployment Governance Operational Controls", owner: "VP of AI Platform", iso: "ISO/IEC 42001:2023 A.7.2, A.8.4", review: "Semi-Annual", description: "Deployment controls require logging enabled, Guardrails enabled, and security review complete before release.", principles: ["Bedrock invocation logging must be enabled.", "Bedrock Guardrails must be enabled.", "IAM wildcard permissions must be blocked.", "Deployment is blocked when OPA violations exist."], enforcedBy: ["TR-001", "RAI-001", "SEC-001"], enforcement: "GitHub Actions runs OPA and blocks non-compliant deployments." },
+      { id: "Monitoring Governance", tier: "operational", category: "Monitoring Governance", title: "Monitoring Governance Operational Controls", owner: "VP of AI Platform", iso: "Monitoring Control", review: "Semi-Annual", description: "Operational monitoring controls require continuous compliance monitoring, audit logging, and incident detection.", principles: ["Continuous compliance monitoring is required.", "Audit logging must be enabled.", "Incident detection must be configured.", "Compliance evidence is uploaded by GitHub Actions."], enforcedBy: ["TR-001"], enforcement: "Logging evidence from TR-001 supports audit reporting." }
+    ];
+    const corporateCount = frameworkPolicies.filter((policy) => policy.tier === "corporate").length;
+    const operationalCount = frameworkPolicies.filter((policy) => policy.tier === "operational").length;
+    const visiblePolicies = frameworkPolicies.filter((policy) => policyFilter === "all" || policy.tier === policyFilter);
+
     return (
       <>
-        <header className="topbar"><div><h1>Policy Framework</h1><p>Corporate AI governance policies mapped to AWS controls</p></div></header>
-        <section className="content-grid middle-content">
+        <header className="framework-header"><div><h1>AI Policy Framework</h1><p>Corporate & Operational AI Governance Policies — ISO/IEC 42001:2023</p></div></header>
+
+        <section className="framework-kpis">
+          <article><span>Total Policies</span><strong>{frameworkPolicies.length}</strong><p>Across both tiers</p><i>▤</i></article>
+          <article><span>Corporate</span><strong>{corporateCount}</strong><p>Board-level mandates</p><i>▧</i></article>
+          <article><span>Operational</span><strong>{operationalCount}</strong><p>Engineering standards</p><i>⚙</i></article>
+        </section>
+
+        <section className="framework-filters" aria-label="Policy filters">
           {[
-            ["Responsible AI Policy", "AI systems must use safety controls, harmful content generation must be mitigated, and human oversight is required for high-risk use cases.", "Amazon Bedrock Guardrails"],
-            ["Data Privacy Policy", "Data must be encrypted, public access prohibited, and sensitive data protected.", "Amazon S3, AWS KMS"],
-            ["Transparency Policy", "AI interactions must be auditable and logging must be enabled.", "Bedrock Invocation Logging, CloudWatch Logs"],
-            ["AI Security Policy", "Least privilege access, no wildcard permissions, and security monitoring are required.", "IAM, CloudTrail, Security Hub"]
-          ].map(([title, body, mapping]) => (
-            <article className="panel rule-detail" key={title}>
-              <h2>{title}</h2>
-              <p>{body}</p>
-              <div className="rule-meta"><b>AWS Mapping</b><b>{mapping}</b></div>
-            </article>
-          ))}
+            ["all", "All Policies"],
+            ["corporate", `Corporate (${corporateCount})`],
+            ["operational", `Operational (${operationalCount})`]
+          ].map(([key, label]) => <button className={policyFilter === key ? "active" : ""} key={key} onClick={() => setPolicyFilter(key as typeof policyFilter)}>{label}</button>)}
+        </section>
+
+        <section className="framework-list">
+          {visiblePolicies.map((policy) => {
+            const expanded = expandedPolicyId === policy.id;
+            return (
+              <article className={`framework-policy ${expanded ? "expanded" : ""}`} key={policy.id}>
+                <button className="framework-policy-head" onClick={() => setExpandedPolicyId(expanded ? "" : policy.id)}>
+                  <span className="policy-id-badge">{policy.tier === "corporate" ? "Corporate" : "Operational"}</span>
+                  <div>
+                    <div className="framework-tags"><span className={policy.tier === "corporate" ? "corporate-tag" : "operational-tag"}>{policy.tier === "corporate" ? "Corporate Policy" : "Operational Policy"}</span><span>{policy.category}</span></div>
+                    <h2>{policy.title}</h2>
+                    <p>Owner: {policy.owner} · {policy.iso} · Review: {policy.review}</p>
+                  </div>
+                  <b>{expanded ? "⌃" : "⌄"}</b>
+                </button>
+
+                {expanded && (
+                  <div className="framework-policy-body">
+                    <p className="policy-description-block">{policy.description}</p>
+                    <h3>Policy Principles</h3>
+                    <ul>{policy.principles.map((principle) => <li key={principle}>{principle}</li>)}</ul>
+                    <div className="enforcement-note"><strong>Enforcement:</strong> {policy.enforcement}</div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </section>
       </>
     );
@@ -452,7 +479,7 @@ function AppPage({
           </article>
           <article className="panel input-panel">
             <h2>Evaluated Input</h2>
-            <pre>{JSON.stringify(scenario.input, null, 2)}</pre>
+            <pre>{JSON.stringify(scenario.rawInput, null, 2)}</pre>
           </article>
         </section>
       </>
@@ -546,20 +573,20 @@ function AppPage({
 
   const failedControls = results.filter((rule) => !rule.passed);
   const scannedResources =
-    scenario.input.resources.s3Buckets.length +
-    scenario.input.resources.bedrockApps.length +
-    scenario.input.resources.iamRoles.length;
+    scenario.input.s3_buckets.length +
+    scenario.input.bedrock_models.length +
+    scenario.input.iam_roles.length;
   const compliantResources =
-    scenario.input.resources.s3Buckets.filter((bucket) => bucket.encryption && !bucket.public_access).length +
-    scenario.input.resources.bedrockApps.filter((app) => app.logging && app.guardrails).length +
-    scenario.input.resources.iamRoles.filter((role) => role.policy !== "*").length;
+    scenario.input.s3_buckets.filter((bucket) => bucket.kms_key_type === "CUSTOMER_MANAGED" && !bucket.public_access).length +
+    scenario.input.bedrock_models.filter((model) => model.invocation_logging_enabled && model.guardrails_enabled).length +
+    scenario.input.iam_roles.filter((role) => !role.wildcard_permissions).length;
   const reportControls = results.filter((rule) => ["DG-001", "TR-001", "RAI-001"].includes(rule.id));
   const auditTrail = {
     scan_id: "scan-abc12345xyz",
     timestamp: "2026-06-07 10:32:15 UTC",
     environment: scenario.label === "Failed Example" ? "staging" : "production",
-    region: "us-east-1",
-    account_id: "123456789012",
+    region: scenario.input.region,
+    account_id: scenario.input.account_id,
     input: scenario.filename
   };
 
@@ -656,34 +683,34 @@ function App() {
   const affectedResources = selectedRule.findings;
   const totalAffectedResources = failed.reduce((count, rule) => count + rule.findings.length, 0);
   const infrastructureRows = [
-    ...scenario.input.resources.s3Buckets.map((bucket) => ({
+    ...scenario.input.s3_buckets.map((bucket) => ({
       icon: "▤",
       name: bucket.name,
       subtitle: "S3 Bucket",
-      highlighted: bucket.name === "aigov-prompt-logs-prod",
+      highlighted: failed.some((rule) => rule.findings.some((finding) => finding.name === bucket.name)),
       checks: [
-        { label: "Encryption", passed: bucket.encryption },
+        { label: "Encryption", passed: bucket.kms_key_type === "CUSTOMER_MANAGED" },
         { label: "Public Access Block", passed: !bucket.public_access }
       ]
     })),
-    ...scenario.input.resources.bedrockApps.map((app) => ({
+    ...scenario.input.bedrock_models.map((app) => ({
       icon: "◌",
       name: app.name,
-      subtitle: app.name === "claims-assistant-bedrock" ? "anthropic.claude-3-sonnet" : app.name === "customer-support-rag" ? "amazon.titan-text-express-v1" : "meta.llama3-70b-instruct-v1",
-      highlighted: false,
+      subtitle: app.model_id,
+      highlighted: failed.some((rule) => rule.findings.some((finding) => finding.name === app.name)),
       checks: [
-        { label: "Logging", passed: app.logging },
-        { label: "Guardrails", passed: app.guardrails }
+        { label: "Logging", passed: app.invocation_logging_enabled },
+        { label: "Guardrails", passed: app.guardrails_enabled }
       ]
     })),
-    ...scenario.input.resources.iamRoles.map((role) => ({
+    ...scenario.input.iam_roles.map((role) => ({
       icon: "▣",
       name: role.name,
       subtitle: "IAM Role",
-      highlighted: false,
+      highlighted: failed.some((rule) => rule.findings.some((finding) => finding.name === role.name)),
       checks: [
-        { label: "Least Privilege", passed: role.policy !== "*" },
-        { label: "No Wildcards", passed: role.policy !== "*" }
+        { label: "Least Privilege", passed: !role.wildcard_permissions },
+        { label: "No Wildcards", passed: !role.wildcard_permissions }
       ]
     }))
   ];
@@ -726,12 +753,12 @@ function App() {
 
         <section className="content-grid middle-content">
           <article className="panel rule-detail"><h2>Selected OPA Rule <span>{selectedRule.id}</span></h2><div className="rule-meta"><b>{selectedRule.iso}</b><b>{selectedRule.policy}</b><b className={selectedRule.passed ? "pass" : "fail"}>{selectedRule.passed ? "PASS" : "FAIL"}</b></div><p>{selectedRule.rule}</p><pre>{selectedRule.rego}</pre></article>
-          <article className="panel input-panel"><h2>Evaluated Mock Infrastructure</h2><pre>{JSON.stringify(scenario.input, null, 2)}</pre></article>
+          <article className="panel input-panel"><h2>Evaluated Mock Infrastructure</h2><pre>{JSON.stringify(scenario.rawInput, null, 2)}</pre></article>
           <article className={`panel input-panel ${evidenceFocus ? "evidence-focus" : ""}`}><h2>{selectedRule.passed ? "Audit Evidence" : "Violation + Remediation"}</h2>{selectedRule.passed ? <pre>{JSON.stringify({ result: "allow", evidence: `${selectedRule.id} passed for ${scenario.filename}` }, null, 2)}</pre> : <div className="finding-list">{affectedResources.map((finding) => <div className="finding-card" key={`${finding.type}-${finding.name}-${finding.field}`}><strong>{finding.name}</strong><span>{finding.type}</span><p>{finding.issue}</p><code>{finding.field}: {finding.currentValue}</code></div>)}<pre>{JSON.stringify({ violation: selectedRule.violation, recommendation: selectedRule.recommendation }, null, 2)}</pre></div>}</article>
         </section>
 
         <section className="content-grid bottom-content">
-          <article className="panel infra aws-infra-panel"><div className="aws-infra-header"><div><h2>AWS Infrastructure</h2><span>us-east-1 · 123456789012</span></div></div><div className="aws-infra-list">{infrastructureRows.map((resource) => <div className={`aws-infra-row ${resource.highlighted ? "highlighted" : ""}`} key={`${resource.subtitle}-${resource.name}`}><div className="aws-resource-icon">{resource.icon}</div><div className="aws-resource-name"><strong>{resource.name}</strong><span>{resource.subtitle}</span></div><div className="aws-resource-checks">{resource.checks.map((check) => <span className={check.passed ? "check-pass" : "check-fail"} key={check.label}><i />{check.label}</span>)}</div></div>)}</div></article>
+          <article className="panel infra aws-infra-panel"><div className="aws-infra-header"><div><h2>AWS Infrastructure</h2><span>{scenario.input.region} · {scenario.input.account_id}</span></div></div><div className="aws-infra-list">{infrastructureRows.map((resource) => <div className={`aws-infra-row ${resource.highlighted ? "highlighted" : ""}`} key={`${resource.subtitle}-${resource.name}`}><div className="aws-resource-icon">{resource.icon}</div><div className="aws-resource-name"><strong>{resource.name}</strong><span>{resource.subtitle}</span></div><div className="aws-resource-checks">{resource.checks.map((check) => <span className={check.passed ? "check-pass" : "check-fail"} key={check.label}><i />{check.label}</span>)}</div></div>)}</div></article>
           <article className="panel actions"><h2>Quick Actions</h2><button className="action-button" onClick={() => { setScenarioKey(scenarioKey === "failed" ? "passed" : "failed"); setEvidenceFocus(false); }}><span className="icon-box blue">▶</span><div><strong>Toggle Scenario</strong><small>Switch pass/fail input</small></div></button><button className="action-button" onClick={() => { setSelectedRuleId(failed[0]?.id ?? results[0].id); setEvidenceFocus(true); }}><span className="icon-box amber">⌬</span><div><strong>View Evidence</strong><small>Show named failing resources</small></div></button></article>
         </section>
           </>

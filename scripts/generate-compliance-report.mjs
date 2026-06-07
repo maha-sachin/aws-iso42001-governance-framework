@@ -43,7 +43,7 @@ const summary = {
 
 const findings = violations.length === 0
   ? "No violations detected. Deployment gate passed."
-  : violations.map((item) => `- ${item.id} / ${item.iso}: ${item.rule}\n  - Remediation: ${item.recommendation}`).join("\n");
+  : violations.map((item) => `- ${item.id} / ${item.iso_control}: ${item.title}\n  - Resource: ${item.resource_type} - ${item.resource_name}\n  - Reason: ${item.reason}\n  - Remediation: ${item.recommendation}`).join("\n");
 
 const markdown = `# AI Governance Compliance Report
 

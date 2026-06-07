@@ -17,7 +17,8 @@ deny contains finding if {
     "resource_type": "S3 Bucket",
     "resource_name": bucket.name,
     "severity": "critical",
-    "reason": sprintf("Bucket %s uses %s KMS instead of CUSTOMER_MANAGED", [bucket.name, bucket.kms_key_type])
+    "reason": sprintf("Bucket %s uses %s KMS instead of CUSTOMER_MANAGED", [bucket.name, bucket.kms_key_type]),
+    "recommendation": "Use customer-managed KMS keys for every evaluated S3 bucket."
   }
 }
 
@@ -32,7 +33,8 @@ deny contains finding if {
     "resource_type": "Bedrock Model",
     "resource_name": model.name,
     "severity": "high",
-    "reason": sprintf("Model %s has invocation logging disabled", [model.name])
+    "reason": sprintf("Model %s has invocation logging disabled", [model.name]),
+    "recommendation": "Enable Bedrock invocation logging for every evaluated model."
   }
 }
 
@@ -47,7 +49,8 @@ deny contains finding if {
     "resource_type": "Bedrock Model",
     "resource_name": model.name,
     "severity": "high",
-    "reason": sprintf("Model %s does not have guardrails enabled", [model.name])
+    "reason": sprintf("Model %s does not have guardrails enabled", [model.name]),
+    "recommendation": "Enable Bedrock Guardrails for every evaluated model."
   }
 }
 
@@ -62,6 +65,7 @@ deny contains finding if {
     "resource_type": "IAM Role",
     "resource_name": role.name,
     "severity": "critical",
-    "reason": sprintf("IAM role %s contains wildcard permissions", [role.name])
+    "reason": sprintf("IAM role %s contains wildcard permissions", [role.name]),
+    "recommendation": "Replace wildcard permissions with scoped least-privilege IAM statements."
   }
 }
