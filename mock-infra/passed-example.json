@@ -1,13 +1,32 @@
 {
-  "s3": {
-    "encryption": true,
-    "public_access": false
-  },
-  "bedrock": {
-    "logging": true,
-    "guardrails": true
-  },
-  "iam": {
-    "policy": "least-privilege"
-  }
+  "account": "AI-DEV",
+  "application": "AI Governance Demo",
+  "environment": "dev",
+  "s3_buckets": [
+    {
+      "name": "ai-training-data-prod",
+      "kms_key_type": "CUSTOMER_MANAGED",
+      "public_access": false
+    }
+  ],
+  "bedrock_models": [
+    {
+      "name": "internal-summarizer",
+      "model_id": "amazon.titan-text-v1",
+      "invocation_logging_enabled": true,
+      "guardrails_enabled": true
+    },
+    {
+      "name": "code-assistant",
+      "model_id": "anthropic.claude-3-sonnet",
+      "invocation_logging_enabled": true,
+      "guardrails_enabled": true
+    }
+  ],
+  "iam_roles": [
+    {
+      "name": "BedrockExecutionRole",
+      "wildcard_permissions": false
+    }
+  ]
 }

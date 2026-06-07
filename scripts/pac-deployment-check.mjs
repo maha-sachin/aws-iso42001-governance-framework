@@ -97,3 +97,66 @@ if (!allowed) {
   console.error("Deployment blocked by OPA/Rego policy evaluation.");
   process.exit(1);
 }
+
+// import { execFileSync } from "node:child_process";
+// import fs from "node:fs";
+
+// const inputFile = process.argv[2];
+
+// if (!inputFile) {
+//   console.error("Usage: node scripts/pac-deployment-check.mjs <input-json>");
+//   process.exit(1);
+// }
+
+// fs.mkdirSync("reports", { recursive: true });
+
+// const result = execFileSync(
+//   "opa",
+//   [
+//     "eval",
+//     "--format",
+//     "json",
+//     "--data",
+//     "policies/ai-lifecycle-governance.rego",
+//     "--input",
+//     inputFile,
+//     "data.ai.lifecycle.governance.deny"
+//   ],
+//   { encoding: "utf8" }
+// );
+
+// const parsed = JSON.parse(result);
+// const findings = parsed.result?.[0]?.expressions?.[0]?.value || [];
+
+// const report = {
+//   input: inputFile,
+//   totalViolations: findings.length,
+//   gateDecision: findings.length > 0 ? "BLOCKED" : "APPROVED",
+//   findings
+// };
+
+// fs.writeFileSync("reports/compliance-report.json", JSON.stringify(report, null, 2));
+
+// console.log("=====================================");
+// console.log("AI Governance PaC Deployment Gate");
+// console.log("=====================================");
+// console.log(`Input: ${inputFile}`);
+// console.log(`Violations: ${findings.length}`);
+// console.log(`Gate Decision: ${report.gateDecision}`);
+
+// for (const finding of findings) {
+//   console.log("");
+//   console.log(`❌ ${finding.id} | ${finding.iso_control}`);
+//   console.log(`Resource: ${finding.resource_type} - ${finding.resource_name}`);
+//   console.log(`Reason: ${finding.reason}`);
+// }
+
+// if (findings.length > 0) {
+//   console.log("");
+//   console.log("Deployment blocked. Fix policy violations before merge.");
+//   process.exit(1);
+// }
+
+// console.log("");
+// console.log("✅ Deployment approved. No policy violations found.");
+// process.exit(0);

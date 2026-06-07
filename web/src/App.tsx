@@ -194,7 +194,7 @@ const policyRules: PolicyRule[] = [
   }
 ];
 
-const nav = ["Dashboard", "Policy Framework", "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline", "Compliance Report", "Evidence Vault", "Settings"];
+const nav = ["Dashboard", "Policy Framework", "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline", "Compliance Report"];
 const lifecycle = ["Scoping", "Data Collection", "Training", "Validation", "Deployment", "Monitoring", "Retirement"];
 
 function evaluatePolicies(input: InfrastructureInput) {

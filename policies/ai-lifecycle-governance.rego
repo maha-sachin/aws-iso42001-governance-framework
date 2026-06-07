@@ -1,67 +1,61 @@
 package ai.lifecycle.governance
 
-default allow := false
+deny contains finding if {
+  bucket := input.s3_buckets[_]
+  bucket.kms_key_type != "CUSTOMER_MANAGED"
 
-allow if {
-  count(deny) == 0
-}
-
-# ISO A.6.2 Data Governance
-# Rule: S3 buckets must use encryption.
-deny contains msg if {
-  input.s3.encryption == false
-  msg := {
+  finding := {
     "id": "DG-001",
-    "iso": "ISO/IEC 42001 A.6.2",
-    "domain": "Data Governance",
-    "policy": "Data Privacy Policy",
-    "rule": "S3 buckets must use encryption.",
-    "violation": {"s3": {"encryption": false}},
-    "recommendation": "Enable S3 default encryption with AWS KMS."
+    "iso_control": "A.6.2",
+    "title": "S3 buckets must use customer-managed KMS keys",
+    "resource_type": "S3 Bucket",
+    "resource_name": bucket.name,
+    "severity": "critical",
+    "reason": sprintf("Bucket %s uses %s KMS instead of CUSTOMER_MANAGED", [bucket.name, bucket.kms_key_type])
   }
 }
 
-# ISO A.7.2 Transparency
-# Rule: Bedrock invocation logging must be enabled.
-deny contains msg if {
-  input.bedrock.logging == false
-  msg := {
+deny contains finding if {
+  model := input.bedrock_models[_]
+  model.invocation_logging_enabled == false
+
+  finding := {
     "id": "TR-001",
-    "iso": "ISO/IEC 42001 A.7.2",
-    "domain": "Transparency",
-    "policy": "Transparency Policy",
-    "rule": "Bedrock invocation logging must be enabled.",
-    "violation": {"bedrock": {"logging": false}},
-    "recommendation": "Enable Bedrock invocation logging to CloudWatch Logs."
+    "iso_control": "A.7.2",
+    "title": "Bedrock invocation logging must be enabled",
+    "resource_type": "Bedrock Model",
+    "resource_name": model.name,
+    "severity": "high",
+    "reason": sprintf("Model %s has invocation logging disabled", [model.name])
   }
 }
 
-# ISO A.8.4 Responsible AI
-# Rule: Bedrock Guardrails must be enabled.
-deny contains msg if {
-  input.bedrock.guardrails == false
-  msg := {
+deny contains finding if {
+  model := input.bedrock_models[_]
+  model.guardrails_enabled == false
+
+  finding := {
     "id": "RAI-001",
-    "iso": "ISO/IEC 42001 A.8.4",
-    "domain": "Responsible AI",
-    "policy": "Responsible AI Policy",
-    "rule": "Bedrock Guardrails must be enabled.",
-    "violation": {"bedrock": {"guardrails": false}},
-    "recommendation": "Attach an approved Bedrock Guardrail before deployment."
+    "iso_control": "A.8.4",
+    "title": "Bedrock Guardrails must be enabled",
+    "resource_type": "Bedrock Model",
+    "resource_name": model.name,
+    "severity": "high",
+    "reason": sprintf("Model %s does not have guardrails enabled", [model.name])
   }
 }
 
-# Security Control
-# Rule: IAM policies cannot use wildcard permissions.
-deny contains msg if {
-  input.iam.policy == "*"
-  msg := {
+deny contains finding if {
+  role := input.iam_roles[_]
+  role.wildcard_permissions == true
+
+  finding := {
     "id": "SEC-001",
-    "iso": "Security Control",
-    "domain": "AI Security",
-    "policy": "AI Security Policy",
-    "rule": "IAM policies cannot use wildcard permissions.",
-    "violation": {"iam": {"policy": "*"}},
-    "recommendation": "Replace wildcard permissions with scoped least-privilege IAM statements."
+    "iso_control": "AI Security",
+    "title": "IAM wildcard permissions are not allowed",
+    "resource_type": "IAM Role",
+    "resource_name": role.name,
+    "severity": "critical",
+    "reason": sprintf("IAM role %s contains wildcard permissions", [role.name])
   }
 }
