@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 type ScenarioKey = "failed" | "passed";
+type PageKey = "Dashboard" | "Policy Framework" | "Policies (OPA)" | "AI Lifecycle" | "CI/CD Pipeline" | "Compliance Report";
 
 type ResourceFinding = {
   type: "S3 Bucket" | "Bedrock App" | "IAM Role";
@@ -194,7 +195,7 @@ const policyRules: PolicyRule[] = [
   }
 ];
 
-const nav = ["Dashboard", "Policy Framework", "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline", "Compliance Report"];
+const nav: PageKey[] = ["Dashboard", "Policy Framework", "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline", "Compliance Report"];
 const lifecycle = ["Scoping", "Data Collection", "Training", "Validation", "Deployment", "Monitoring", "Retirement"];
 
 function evaluatePolicies(input: InfrastructureInput) {
@@ -247,7 +248,131 @@ function TrendChart({ score }: { score: number }) {
   );
 }
 
+function AppPage({
+  page,
+  scenario,
+  results,
+  selectedRule,
+  setSelectedRuleId
+}: {
+  page: PageKey;
+  scenario: Record<ScenarioKey, { label: string; filename: string; input: InfrastructureInput }>[ScenarioKey];
+  results: ReturnType<typeof evaluatePolicies>;
+  selectedRule: ReturnType<typeof evaluatePolicies>[number];
+  setSelectedRuleId: (id: string) => void;
+}) {
+  if (page === "Policy Framework") {
+    return (
+      <>
+        <header className="topbar"><div><h1>Policy Framework</h1><p>Corporate AI governance policies mapped to AWS controls</p></div></header>
+        <section className="content-grid middle-content">
+          {[
+            ["Responsible AI Policy", "AI systems must use safety controls, harmful content generation must be mitigated, and human oversight is required for high-risk use cases.", "Amazon Bedrock Guardrails"],
+            ["Data Privacy Policy", "Data must be encrypted, public access prohibited, and sensitive data protected.", "Amazon S3, AWS KMS"],
+            ["Transparency Policy", "AI interactions must be auditable and logging must be enabled.", "Bedrock Invocation Logging, CloudWatch Logs"],
+            ["AI Security Policy", "Least privilege access, no wildcard permissions, and security monitoring are required.", "IAM, CloudTrail, Security Hub"]
+          ].map(([title, body, mapping]) => (
+            <article className="panel rule-detail" key={title}>
+              <h2>{title}</h2>
+              <p>{body}</p>
+              <div className="rule-meta"><b>AWS Mapping</b><b>{mapping}</b></div>
+            </article>
+          ))}
+        </section>
+      </>
+    );
+  }
+
+  if (page === "Policies (OPA)") {
+    return (
+      <>
+        <header className="topbar"><div><h1>Policies (OPA)</h1><p>Open Policy Agent rules enforcing ISO 42001 controls</p></div></header>
+        <section className="content-grid middle-content">
+          <article className="panel policy-panel">
+            <h2>OPA/Rego Controls</h2>
+            <div className="policy-table">
+              <div className="table-head"><span>CONTROL ID</span><span>CONTROL NAME</span><span>STATUS</span><span>VIOLATIONS</span><span>SEVERITY</span></div>
+              {results.map((control) => (
+                <button className={`table-row row-button ${selectedRule.id === control.id ? "selected-row" : ""}`} key={control.id} onClick={() => setSelectedRuleId(control.id)}>
+                  <strong>{control.id}</strong><p>{control.domain}</p><span className={control.passed ? "pass" : "fail"}>{control.passed ? "✓ Passed" : "× Failed"}</span><em>{control.findings.length}</em><b className={`pill ${control.passed ? "low" : control.severity.toLowerCase()}`}>{control.passed ? "Low" : control.severity}</b>
+                </button>
+              ))}
+            </div>
+          </article>
+          <article className="panel rule-detail">
+            <h2>Selected Rego Rule <span>{selectedRule.id}</span></h2>
+            <div className="rule-meta"><b>{selectedRule.iso}</b><b>{selectedRule.policy}</b></div>
+            <p>{selectedRule.rule}</p>
+            <pre>{selectedRule.rego}</pre>
+          </article>
+          <article className="panel input-panel">
+            <h2>Evaluated Input</h2>
+            <pre>{JSON.stringify(scenario.input, null, 2)}</pre>
+          </article>
+        </section>
+      </>
+    );
+  }
+
+  if (page === "AI Lifecycle") {
+    return (
+      <>
+        <header className="topbar"><div><h1>AI Lifecycle</h1><p>Policy-as-Code governance across the AI system lifecycle</p></div></header>
+        <section className="content-grid middle-content">
+          {lifecycle.map((stage, index) => (
+            <article className="panel rule-detail" key={stage}>
+              <h2>{index + 1}. {stage}</h2>
+              <p>{stage === "Deployment" ? "Deployment is blocked unless OPA returns allow=true for all required AI governance controls." : "Lifecycle evidence is mapped to policy requirements and control ownership."}</p>
+              <div className="rule-meta"><b>{index < 4 ? "Pre-deployment" : "Operational"}</b><b>Policy Evidence</b></div>
+            </article>
+          ))}
+        </section>
+      </>
+    );
+  }
+
+  if (page === "CI/CD Pipeline") {
+    return (
+      <>
+        <header className="topbar"><div><h1>CI/CD Pipeline</h1><p>GitHub Actions AI governance Policy-as-Code deployment gate</p></div></header>
+        <section className="panel rule-detail">
+          <h2>Complete CI/CD Flow</h2>
+          <div className="pipeline-steps">
+            {[
+              ["Developer pushes to GitHub", "Infrastructure or mock AWS configuration is modified."],
+              ["GitHub Actions Triggered", ".github/workflows/ai-governance-gate.yml starts on push, pull request, or manual dispatch."],
+              ["Stage 1-3: Setup", "Checkout repository, setup Node.js, install OPA, and validate Terraform."],
+              ["Stage 4: A.6.2 Data Governance Check", "OPA evaluates S3 encryption policy."],
+              ["Stage 5: A.7.2 Transparency Check", "OPA evaluates Bedrock invocation logging."],
+              ["Stage 6: A.8.4 Responsible AI Check", "OPA evaluates Bedrock Guardrails."],
+              ["Stage 7: Gate Decision", "scripts/pac-deployment-check.mjs blocks deployment when violations are greater than zero."]
+            ].map(([title, detail]) => <div className="pipeline-step" key={title}><strong>{title}</strong><span>{detail}</span></div>)}
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <header className="topbar"><div><h1>Compliance Report</h1><p>Audit evidence generated from OPA/Rego policy evaluation</p></div></header>
+      <section className="content-grid middle-content">
+        <article className="panel rule-detail">
+          <h2>Report Summary</h2>
+          <div className="rule-meta"><b>Input: {scenario.filename}</b><b>Policy: policies/ai-lifecycle-governance.rego</b></div>
+          <p>The deployment check generates JSON and Markdown evidence under reports/ and uploads it as a GitHub Actions artifact.</p>
+        </article>
+        <article className="panel input-panel">
+          <h2>Violations</h2>
+          <pre>{JSON.stringify(results.filter((rule) => !rule.passed).map((rule) => ({ id: rule.id, iso: rule.iso, rule: rule.rule, findings: rule.findings })), null, 2)}</pre>
+        </article>
+      </section>
+    </>
+  );
+}
+
 function App() {
+  const [activePage, setActivePage] = useState<PageKey>("Dashboard");
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>("failed");
   const [selectedRuleId, setSelectedRuleId] = useState(policyRules[0].id);
   const [evidenceFocus, setEvidenceFocus] = useState(false);
@@ -271,11 +396,13 @@ function App() {
     <div className="dashboard-shell">
       <aside className="sidebar">
         <div className="brand"><div className="shield">▰</div><div><strong>AI Governance</strong><span>Policy-as-Code Gateway</span></div></div>
-        <nav>{nav.map((item, index) => <a className={index === 0 ? "active" : ""} key={item}><span>{["▦", "▧", "⌁", "◌", "⌬", "▤", "▣", "⚙"][index]}</span>{item}</a>)}</nav>
+        <nav>{nav.map((item, index) => <button className={activePage === item ? "active" : ""} key={item} onClick={() => setActivePage(item)}><span>{["▦", "▧", "⌁", "◌", "⌬", "▤"][index]}</span>{item}</button>)}</nav>
         <div className="sidebar-footer"><div className="env"><span>SCENARIO</span><strong><i />{scenario.label}</strong></div></div>
       </aside>
 
       <main className="main-panel">
+        {activePage !== "Dashboard" ? <AppPage page={activePage} scenario={scenario} results={results} selectedRule={selectedRule} setSelectedRuleId={setSelectedRuleId} /> : (
+          <>
         <header className="topbar">
           <div><h1>Dashboard</h1><p>Interactive OPA/Rego evaluation for {scenario.filename}</p></div>
           <div className="top-actions">
@@ -312,6 +439,8 @@ function App() {
           <article className="panel runs"><div className="panel-title"><h2>Recent Pipeline Runs</h2><a>OPA gate →</a></div><div className="run-row"><i className={blocked ? "ko" : "ok"}>×</i><div><strong>{scenarioKey === "failed" ? "feature/ai-infra-update" : "main"}</strong><span className={blocked ? "fail-tag" : "pass-tag"}>{blocked ? "Failed" : "Passed"}</span><small>{failed.length} violations found</small></div><p>Current scan<br /><b>OPA/Rego</b></p></div><div className="run-row"><i className="ok">×</i><div><strong>fix/s3-encryption</strong><span className="pass-tag">Passed</span><small>0 violations</small></div><p>Previous scan<br /><b>1m 18s</b></p></div><a>GitHub Actions uses the same allow query →</a></article>
           <article className="panel actions"><h2>Quick Actions</h2><button className="action-button" onClick={() => { setScenarioKey(scenarioKey === "failed" ? "passed" : "failed"); setEvidenceFocus(false); }}><span className="icon-box blue">▶</span><div><strong>Toggle Scenario</strong><small>Switch pass/fail input</small></div></button><button className="action-button" onClick={() => { setSelectedRuleId(failed[0]?.id ?? results[0].id); setEvidenceFocus(true); }}><span className="icon-box amber">⌬</span><div><strong>View Evidence</strong><small>Show named failing resources</small></div></button></article>
         </section>
+          </>
+        )}
       </main>
     </div>
   );

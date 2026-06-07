@@ -8,8 +8,9 @@ button, a { font: inherit; }
 .shield { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(135deg, #2563eb, #60a5fa); box-shadow: 0 0 26px rgba(59, 130, 246, 0.46); color: white; }
 .brand strong { display: block; font-size: 22px; } .brand span { display: block; color: #9aa8bd; font-weight: 600; margin-top: 4px; }
 nav { padding: 8px 10px; display: grid; gap: 12px; }
-nav a { height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 16px; color: #a9b5c8; text-decoration: none; border-radius: 8px; font-weight: 700; }
-nav a span { width: 20px; text-align: center; color: #9fb0ca; } nav a.active { color: #fff; background: linear-gradient(90deg, #0d4cab, #0b2d78); box-shadow: 0 10px 26px rgba(37, 99, 235, 0.25); }
+nav a, nav button { height: 56px; display: flex; align-items: center; gap: 14px; padding: 0 16px; color: #a9b5c8; text-decoration: none; border: 0; border-radius: 8px; background: transparent; text-align: left; font-weight: 700; cursor: pointer; }
+nav a span, nav button span { width: 20px; text-align: center; color: #9fb0ca; } nav a.active, nav button.active { color: #fff; background: linear-gradient(90deg, #0d4cab, #0b2d78); box-shadow: 0 10px 26px rgba(37, 99, 235, 0.25); }
+nav button:hover { color: #fff; background: rgba(59, 130, 246, 0.12); }
 .sidebar-footer { margin-top: auto; border-top: 1px solid rgba(148, 163, 184, 0.16); padding: 12px; }
 .env { border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
 .env span { display: block; color: #7f8ca2; font-size: 12px; font-weight: 800; } .env strong { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #d7e1ef; } .env i { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
@@ -65,3 +66,7 @@ h1, h2, h3, p { margin-top: 0; } h1 { margin: 0 0 4px; font-size: 32px; } .topba
 .finding-card code { display: inline-block; padding: 5px 8px; border-radius: 6px; color: #fef2f2; background: rgba(239, 68, 68, 0.18); }
 .evidence-focus { border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18), 0 0 34px rgba(245, 158, 11, 0.08); }
 .sidebar-footer { border-top: 0; }
+.pipeline-steps { display: grid; gap: 14px; }
+.pipeline-step { display: grid; gap: 6px; padding: 18px 20px; border: 1px solid rgba(148, 163, 184, 0.13); border-radius: 10px; background: rgba(15, 28, 49, 0.62); }
+.pipeline-step strong { color: #f8fafc; font-size: 18px; }
+.pipeline-step span { color: #94a3b8; font-weight: 700; }
