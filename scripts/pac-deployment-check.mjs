@@ -57,7 +57,7 @@ const result = {
 
 const violationRows = violations.length === 0
   ? "| None | None | None | None |\n"
-  : violations.map((item) => `| ${item.id} | ${item.iso} | ${item.rule} | ${item.recommendation} |`).join("\n") + "\n";
+  : violations.map((item) => `| ${item.id} | ${item.iso_control} | ${item.title} | ${item.reason} |`).join("\n") + "\n";
 
 const markdown = `# Policy-as-Code Deployment Check
 

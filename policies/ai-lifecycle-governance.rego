@@ -1,5 +1,11 @@
 package ai.lifecycle.governance
 
+default allow := false
+
+allow if {
+  count(deny) == 0
+}
+
 deny contains finding if {
   bucket := input.s3_buckets[_]
   bucket.kms_key_type != "CUSTOMER_MANAGED"
