@@ -2,6 +2,22 @@
   "account": "AI-DEV",
   "application": "AI Governance Demo",
   "environment": "dev",
+  "impact_assessment": {
+    "completed": true,
+    "assessment_id": "AIA-2026-001",
+    "owner": "AI Risk Office",
+    "reviewed_at": "2026-06-07"
+  },
+  "risk": {
+    "rating": "medium",
+    "score": 42,
+    "accepted": true
+  },
+  "production_approval": {
+    "approved": true,
+    "approver": "Sunitha",
+    "ticket": "CAB-2026-042"
+  },
   "s3_buckets": [
     {
       "name": "ai-training-data-prod",

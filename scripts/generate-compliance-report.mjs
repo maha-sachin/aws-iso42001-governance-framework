@@ -24,8 +24,9 @@ function opaEval(query) {
 const input = JSON.parse(readFileSync(resolvedInput, "utf8"));
 const violations = opaEval("data.ai.lifecycle.governance.deny") ?? [];
 const allowed = opaEval("data.ai.lifecycle.governance.allow") === true;
-const totalControls = 4;
-const passedControls = totalControls - violations.length;
+const totalControls = 7;
+const failedControlCount = new Set(violations.map((item) => item.id)).size;
+const passedControls = totalControls - failedControlCount;
 const complianceScore = Math.round((passedControls / totalControls) * 100);
 const riskLevel = complianceScore >= 90 ? "Low" : complianceScore >= 70 ? "Medium" : "High";
 
@@ -36,7 +37,7 @@ const summary = {
   risk_level: riskLevel,
   total_controls: totalControls,
   passed_controls: passedControls,
-  failed_controls: violations.length,
+  failed_controls: failedControlCount,
   violations,
   evaluated_input: input
 };

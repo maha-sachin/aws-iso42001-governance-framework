@@ -69,3 +69,49 @@ deny contains finding if {
     "recommendation": "Replace wildcard permissions with scoped least-privilege IAM statements."
   }
 }
+
+deny contains finding if {
+  not input.impact_assessment.completed
+
+  finding := {
+    "id": "GOV-001",
+    "iso_control": "A.5.2",
+    "title": "AI impact assessment must be completed",
+    "resource_type": "Governance Evidence",
+    "resource_name": input.application,
+    "severity": "high",
+    "reason": "Impact assessment evidence is missing or incomplete",
+    "recommendation": "Complete the AI impact assessment and attach the assessment ID before CI/CD deployment."
+  }
+}
+
+deny contains finding if {
+  input.risk.rating == "critical"
+  not input.risk.accepted
+
+  finding := {
+    "id": "GOV-002",
+    "iso_control": "A.5.3",
+    "title": "Critical AI risk must be accepted before deployment",
+    "resource_type": "Risk Record",
+    "resource_name": input.application,
+    "severity": "critical",
+    "reason": sprintf("Risk rating is %s with score %v and has not been accepted", [input.risk.rating, input.risk.score]),
+    "recommendation": "Reduce the AI risk rating or document formal risk acceptance before the deployment gate can pass."
+  }
+}
+
+deny contains finding if {
+  not input.production_approval.approved
+
+  finding := {
+    "id": "GOV-003",
+    "iso_control": "A.6.1",
+    "title": "Production approval is required",
+    "resource_type": "Approval Evidence",
+    "resource_name": input.application,
+    "severity": "high",
+    "reason": "Production approval evidence is missing",
+    "recommendation": "Capture production approval with an approver and change ticket before release."
+  }
+}

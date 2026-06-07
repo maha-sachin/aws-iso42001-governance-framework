@@ -6,7 +6,7 @@ type ScenarioKey = "failed" | "passed";
 type PageKey = "Dashboard" | "Policy Framework" | "Policies (OPA)" | "AI Lifecycle" | "CI/CD Pipeline" | "Compliance Report";
 
 type ResourceFinding = {
-  type: "S3 Bucket" | "Bedrock App" | "IAM Role";
+  type: "S3 Bucket" | "Bedrock App" | "IAM Role" | "Governance Evidence" | "Risk Record" | "Approval Evidence";
   name: string;
   field: string;
   currentValue: string;
@@ -19,6 +19,9 @@ type InfrastructureInput = {
   application: string;
   environment: string;
   region?: string;
+  impact_assessment?: { completed: boolean; assessment_id: string; owner: string; reviewed_at: string };
+  risk?: { rating: "low" | "medium" | "high" | "critical"; score: number; accepted: boolean };
+  production_approval?: { approved: boolean; approver: string; ticket: string };
   s3_buckets: Array<{ name: string; kms_key_type: "AWS_MANAGED" | "CUSTOMER_MANAGED"; public_access: boolean }>;
   bedrock_models: Array<{ name: string; model_id: string; invocation_logging_enabled: boolean; guardrails_enabled: boolean }>;
   iam_roles: Array<{ name: string; wildcard_permissions: boolean }>;
@@ -27,6 +30,9 @@ type InfrastructureInput = {
 type EvaluatedInfrastructureInput = InfrastructureInput & {
   account_id: string;
   region: string;
+  impact_assessment: { completed: boolean; assessment_id: string; owner: string; reviewed_at: string };
+  risk: { rating: "low" | "medium" | "high" | "critical"; score: number; accepted: boolean };
+  production_approval: { approved: boolean; approver: string; ticket: string };
 };
 
 type PolicyRule = {
@@ -35,7 +41,7 @@ type PolicyRule = {
   domain: string;
   policy: string;
   rule: string;
-  resource: "s3" | "bedrock" | "iam";
+  resource: "s3" | "bedrock" | "iam" | "governance";
   severity: "Critical" | "High";
   recommendation: string;
   rego: string;
@@ -48,7 +54,10 @@ function normalizeInfrastructureInput(input: InfrastructureInput): EvaluatedInfr
   return {
     ...input,
     account_id: input.account_id ?? "123456789012",
-    region: input.region ?? "us-east-1"
+    region: input.region ?? "us-east-1",
+    impact_assessment: input.impact_assessment ?? { completed: false, assessment_id: "", owner: "", reviewed_at: "" },
+    risk: input.risk ?? { rating: "critical", score: 100, accepted: false },
+    production_approval: input.production_approval ?? { approved: false, approver: "", ticket: "" }
   };
 }
 
@@ -161,6 +170,88 @@ const policyRules: PolicyRule[] = [
     "id": "SEC-001",
     "iso": "Security Control",
     "rule": "IAM policies cannot use wildcard permissions."
+  }
+}`
+  },
+  {
+    id: "GOV-001",
+    iso: "ISO/IEC 42001 A.5.2",
+    domain: "Impact Assessment",
+    policy: "AI Governance Policy",
+    rule: "AI impact assessment must be completed.",
+    resource: "governance",
+    severity: "High",
+    recommendation: "Complete the AI impact assessment and attach the assessment ID before CI/CD deployment.",
+    violation: { impact_assessment: { completed: false } },
+    evaluate: (input) => input.impact_assessment.completed,
+    getFindings: (input) => input.impact_assessment.completed ? [] : [{
+      type: "Governance Evidence",
+      name: input.application,
+      field: "impact_assessment.completed",
+      currentValue: String(input.impact_assessment.completed),
+      issue: "Impact assessment evidence is missing or incomplete"
+    }],
+    rego: `deny contains msg if {
+  not input.impact_assessment.completed
+  msg := {
+    "id": "GOV-001",
+    "iso": "ISO/IEC 42001 A.5.2",
+    "rule": "AI impact assessment must be completed."
+  }
+}`
+  },
+  {
+    id: "GOV-002",
+    iso: "ISO/IEC 42001 A.5.3",
+    domain: "Risk Rating",
+    policy: "AI Risk Management Policy",
+    rule: "Critical AI risk must be accepted before deployment.",
+    resource: "governance",
+    severity: "Critical",
+    recommendation: "Reduce the AI risk rating or document formal risk acceptance before the deployment gate can pass.",
+    violation: { risk: { rating: "critical", accepted: false } },
+    evaluate: (input) => input.risk.rating !== "critical" || input.risk.accepted,
+    getFindings: (input) => input.risk.rating !== "critical" || input.risk.accepted ? [] : [{
+      type: "Risk Record",
+      name: input.application,
+      field: "risk.rating",
+      currentValue: `${input.risk.rating} (${input.risk.score})`,
+      issue: "Critical AI risk has not been formally accepted"
+    }],
+    rego: `deny contains msg if {
+  input.risk.rating == "critical"
+  not input.risk.accepted
+  msg := {
+    "id": "GOV-002",
+    "iso": "ISO/IEC 42001 A.5.3",
+    "rule": "Critical AI risk must be accepted before deployment."
+  }
+}`
+  },
+  {
+    id: "GOV-003",
+    iso: "ISO/IEC 42001 A.6.1",
+    domain: "Production Approval",
+    policy: "Deployment Governance Policy",
+    rule: "Production approval is required.",
+    resource: "governance",
+    severity: "High",
+    recommendation: "Capture production approval with an approver and change ticket before release.",
+    violation: { production_approval: { approved: false } },
+    evaluate: (input) => input.production_approval.approved,
+    getFindings: (input) => input.production_approval.approved ? [] : [{
+      type: "Approval Evidence",
+      name: input.application,
+      field: "production_approval.approved",
+      currentValue: String(input.production_approval.approved),
+      issue: "Production approval evidence is missing"
+    }],
+    rego: `deny contains msg if {
+  not input.production_approval.approved
+  msg := {
+    "id": "GOV-003",
+    "iso": "ISO/IEC 42001 A.6.1",
+    "rule": "Production approval is required."
   }
 }`
   }
@@ -550,22 +641,58 @@ function AppPage({
   }
 
   if (page === "CI/CD Pipeline") {
+    const governanceGateIds = ["GOV-001", "GOV-002", "GOV-003"];
+    const governanceGates = results.filter((rule) => governanceGateIds.includes(rule.id));
+    const pipelineFacts = [
+      ["Impact Assessment", scenario.input.impact_assessment.completed ? scenario.input.impact_assessment.assessment_id : "Missing", "Confirms the AI use case, affected users, data sensitivity, and control obligations before code can ship."],
+      ["Risk Rating", `${scenario.input.risk.rating.toUpperCase()} (${scenario.input.risk.score})`, "Makes deployment risk visible in CI/CD and blocks unaccepted critical risk before production exposure."],
+      ["Production Approval", scenario.input.production_approval.approved ? `${scenario.input.production_approval.approver} · ${scenario.input.production_approval.ticket}` : "Missing", "Creates accountable release evidence so production changes are approved before the gate passes."]
+    ];
+
     return (
       <>
         <header className="topbar"><div><h1>CI/CD Pipeline</h1><p>GitHub Actions AI governance Policy-as-Code deployment gate</p></div></header>
-        <section className="panel rule-detail">
-          <h2>Complete CI/CD Flow</h2>
-          <div className="pipeline-steps">
-            {[
-              ["Developer pushes to GitHub", "Infrastructure or mock AWS configuration is modified."],
-              ["GitHub Actions Triggered", ".github/workflows/ai-governance-gate.yml starts on push, pull request, or manual dispatch."],
-              ["Stage 1-3: Setup", "Checkout repository, setup Node.js, install OPA, and validate Terraform."],
-              ["Stage 4: A.6.2 Data Governance Check", "OPA evaluates S3 encryption policy."],
-              ["Stage 5: A.7.2 Transparency Check", "OPA evaluates Bedrock invocation logging."],
-              ["Stage 6: A.8.4 Responsible AI Check", "OPA evaluates Bedrock Guardrails."],
-              ["Stage 7: Gate Decision", "scripts/pac-deployment-check.mjs blocks deployment when violations are greater than zero."]
-            ].map(([title, detail]) => <div className="pipeline-step" key={title}><strong>{title}</strong><span>{detail}</span></div>)}
-          </div>
+
+        <section className="content-grid middle-content">
+          <article className="panel rule-detail">
+            <h2>Complete CI/CD Flow</h2>
+            <div className="pipeline-steps">
+              {[
+                ["Developer pushes to GitHub", "Infrastructure or mock AWS configuration is modified."],
+                ["GitHub Actions Triggered", ".github/workflows/ai-governance-gate.yml starts on push, pull request, or manual dispatch."],
+                ["Stage 1-3: Setup", "Checkout repository, setup Node.js, install OPA, and validate Terraform."],
+                ["Stage 4: Technical Controls", "OPA evaluates S3 encryption, Bedrock logging, Bedrock Guardrails, and IAM wildcard permissions."],
+                ["Stage 5: Impact Assessment", "OPA checks impact_assessment.completed and requires assessment evidence."],
+                ["Stage 6: Risk Rating", "OPA blocks critical AI risk unless the risk is formally accepted."],
+                ["Stage 7: Production Approval", "OPA requires production_approval.approved with release evidence."],
+                ["Stage 8: Gate Decision", "scripts/pac-deployment-check.mjs blocks deployment when any policy violation exists."]
+              ].map(([title, detail]) => <div className="pipeline-step" key={title}><strong>{title}</strong><span>{detail}</span></div>)}
+            </div>
+          </article>
+
+          <article className="panel rule-detail">
+            <h2>Governance Gate Status <span>{scenario.label}</span></h2>
+            <div className="pipeline-steps">
+              {governanceGates.map((gate) => (
+                <div className="pipeline-step" key={gate.id}>
+                  <strong><span className={gate.passed ? "pass" : "fail"}>{gate.passed ? "✓" : "×"}</span> {gate.id} · {gate.domain}</strong>
+                  <span>{gate.passed ? "Passing scenario evidence is present." : gate.findings[0]?.issue}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel input-panel">
+            <h2>Why This Matters</h2>
+            <div className="pipeline-steps">
+              {pipelineFacts.map(([title, value, why]) => (
+                <div className="pipeline-step" key={title}>
+                  <strong>{title}: {value}</strong>
+                  <span>{why}</span>
+                </div>
+              ))}
+            </div>
+          </article>
         </section>
       </>
     );
@@ -580,7 +707,7 @@ function AppPage({
     scenario.input.s3_buckets.filter((bucket) => bucket.kms_key_type === "CUSTOMER_MANAGED" && !bucket.public_access).length +
     scenario.input.bedrock_models.filter((model) => model.invocation_logging_enabled && model.guardrails_enabled).length +
     scenario.input.iam_roles.filter((role) => !role.wildcard_permissions).length;
-  const reportControls = results.filter((rule) => ["DG-001", "TR-001", "RAI-001"].includes(rule.id));
+  const reportControls = results;
   const auditTrail = {
     scan_id: "scan-abc12345xyz",
     timestamp: "2026-06-07 10:32:15 UTC",
@@ -602,7 +729,7 @@ function AppPage({
         </article>
         <article className="panel report-status"><span>Resources Scanned</span><strong>{scannedResources}</strong><p>S3 buckets, Bedrock apps, IAM roles</p></article>
         <article className="panel report-status"><span>Resource Compliance</span><strong>{Math.round((compliantResources / scannedResources) * 100)}%</strong><p>{compliantResources}/{scannedResources} compliant</p></article>
-        <article className="panel report-status"><span>Controls Evaluated</span><strong>{reportControls.length}</strong><p>A.6.2, A.7.2, A.8.4</p></article>
+        <article className="panel report-status"><span>Controls Evaluated</span><strong>{reportControls.length}</strong><p>Technical and governance gates</p></article>
       </section>
 
       <section className="panel report-summary">
@@ -628,8 +755,8 @@ function AppPage({
               {control.findings.length === 0 ? (
                 <div className="report-violation clean"><strong>No violations</strong><p>All evaluated resources meet this control.</p></div>
               ) : control.findings.map((finding) => {
-                const expected = control.id === "DG-001" ? "Customer Managed KMS Key ARN" : control.id === "TR-001" ? "enabled with valid S3 destination" : "enabled with valid guardrail_id and version";
-                const current = control.id === "DG-001" ? "alias/aws/s3" : "disabled";
+                const expected = control.id === "DG-001" ? "Customer Managed KMS Key ARN" : control.id === "TR-001" ? "enabled with valid S3 destination" : control.id === "RAI-001" ? "enabled with valid guardrail_id and version" : control.id === "GOV-001" ? "completed impact assessment ID" : control.id === "GOV-002" ? "non-critical rating or accepted critical risk" : control.id === "GOV-003" ? "approved production change ticket" : "compliant value";
+                const current = finding.currentValue;
                 return (
                   <div className="report-violation" key={`${control.id}-${finding.name}`}>
                     <strong>Resource: {finding.name} ({finding.type})</strong>

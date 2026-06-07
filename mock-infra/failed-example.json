@@ -2,6 +2,22 @@
   "account": "AI-DEV",
   "application": "AI Governance Demo",
   "environment": "dev",
+  "impact_assessment": {
+    "completed": false,
+    "assessment_id": "",
+    "owner": "",
+    "reviewed_at": ""
+  },
+  "risk": {
+    "rating": "critical",
+    "score": 92,
+    "accepted": false
+  },
+  "production_approval": {
+    "approved": false,
+    "approver": "",
+    "ticket": ""
+  },
   "s3_buckets": [
     {
       "name": "ai-training-data-prod",
