@@ -197,6 +197,100 @@ const policyRules: PolicyRule[] = [
 
 const nav: PageKey[] = ["Dashboard", "Policy Framework", "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline", "Compliance Report"];
 const lifecycle = ["Scoping", "Data Collection", "Training", "Validation", "Deployment", "Monitoring", "Retirement"];
+const lifecycleStages = [
+  {
+    stage: "Problem Definition & Scoping",
+    status: "passed",
+    goal: "Define the AI use case and classify risk before work starts.",
+    gates: [
+      ["LC-01-A", "Risk Tier Classification", "Must declare risk_tier 0-3. Tier-0 projects are blocked.", "passed"],
+      ["LC-01-B", "Executive Sponsor Gate", "Tier-1 high-risk projects require executive approval.", "passed"]
+    ],
+    aws: "IAM, Service Catalog, AWS Organizations",
+    policies: "CP-001, CP-002"
+  },
+  {
+    stage: "Data Collection & Governance",
+    status: "failed",
+    goal: "Ingest training data safely with encryption, lineage, and bias screening.",
+    gates: [
+      ["LC-02-A", "S3 CMK Encryption Gate", "ai-training-data-prod uses AWS-managed KMS instead of a customer-managed key.", "failed"],
+      ["LC-02-B", "Data Lineage Documentation", "Dataset source, license, and collection date are tracked.", "passed"],
+      ["LC-02-C", "Bias Screening Gate", "Dataset bias_score is below or equal to 0.15.", "passed"]
+    ],
+    aws: "S3, AWS Glue, Lake Formation, KMS",
+    policies: "OP-001, CP-003"
+  },
+  {
+    stage: "Model Training & Experimentation",
+    status: "failed",
+    goal: "Train models with reproducibility, metrics, artifact tracking, and tags.",
+    gates: [
+      ["LC-03-A", "Experiment Tracking", "Training metrics are logged to SageMaker Experiments.", "passed"],
+      ["LC-03-B", "Artifact Encryption", "Model artifacts in S3 use customer-managed KMS keys.", "passed"],
+      ["LC-03-C", "Resource Tagging Gate", "Some training jobs are missing project, cost_center, and data_classification tags.", "failed"]
+    ],
+    aws: "SageMaker, ECR, CloudWatch",
+    policies: "OP-004"
+  },
+  {
+    stage: "Model Evaluation & Bias Assessment",
+    status: "passed",
+    goal: "Validate model performance and fairness before approval.",
+    gates: [
+      ["LC-04-A", "Minimum Accuracy Gate", "Model accuracy is greater than or equal to the 0.85 baseline.", "passed"],
+      ["LC-04-B", "Bias Report Gate", "SageMaker Clarify report exists and fairness ratio is within range.", "passed"]
+    ],
+    aws: "SageMaker Clarify, Model Monitor",
+    policies: "CP-002, CP-003, OP-004"
+  },
+  {
+    stage: "Model Registration & Approval",
+    status: "passed",
+    goal: "Register model metadata and capture required approvals.",
+    gates: [
+      ["LC-05-A", "Registry Metadata Completeness", "Model name, version, training data hash, bias report URI, and approver are present.", "passed"],
+      ["LC-05-B", "Dual Approval Gate", "Tier-1 models require MLOps Lead and AI Risk Officer approvals.", "passed"]
+    ],
+    aws: "SageMaker Model Registry, IAM, SNS",
+    policies: "CP-002, OP-004"
+  },
+  {
+    stage: "Production Deployment",
+    status: "failed",
+    goal: "Deploy to AWS only after ISO 42001 controls pass.",
+    gates: [
+      ["LC-06-A", "A.6.2 Data Governance", "ai-training-data-prod violates S3 customer-managed KMS encryption.", "failed"],
+      ["LC-06-B", "A.7.2 Transparency", "internal-summarizer has Bedrock invocation logging disabled.", "failed"],
+      ["LC-06-C", "A.8.4 Responsible AI", "code-assistant has Bedrock Guardrails disabled.", "failed"],
+      ["LC-06-D", "IAM Least Privilege", "Production roles are scoped to approved AI deployment permissions.", "passed"]
+    ],
+    aws: "Bedrock, SageMaker Endpoints, S3, CloudWatch, KMS",
+    policies: "OP-001, OP-002, OP-003"
+  },
+  {
+    stage: "Runtime Monitoring & Drift Detection",
+    status: "passed",
+    goal: "Detect model degradation and operational risk in production.",
+    gates: [
+      ["LC-07-A", "Monitoring Schedule Gate", "SageMaker Model Monitor is enabled for all endpoints.", "passed"],
+      ["LC-07-B", "Drift Alert Gate", "Drift thresholds and SNS alerts are configured.", "passed"]
+    ],
+    aws: "SageMaker Model Monitor, CloudWatch, CloudTrail",
+    policies: "CP-001, OP-002"
+  },
+  {
+    stage: "Model Retirement & Data Purge",
+    status: "passed",
+    goal: "Decommission models safely and preserve audit trails.",
+    gates: [
+      ["LC-08-A", "Retirement Approval Gate", "AI System Owner approval and 90-day notice are required.", "passed"],
+      ["LC-08-B", "Audit Trail Preservation", "Invocation logs are archived for 24 months before deletion.", "passed"]
+    ],
+    aws: "SageMaker, S3, KMS, CloudTrail",
+    policies: "CP-003, OP-001"
+  }
+];
 
 function evaluatePolicies(input: InfrastructureInput) {
   return policyRules.map((rule) => {
@@ -248,6 +342,55 @@ function TrendChart({ score }: { score: number }) {
   );
 }
 
+function lifecycleGateRego(id: string) {
+  const snippets: Record<string, string> = {
+    "LC-01-A": `package lifecycle.scoping
+
+deny[msg] {
+  not input.ai_project.risk_tier
+  msg := "LC-01-A: risk_tier must be declared before provisioning"
+}
+
+deny[msg] {
+  input.ai_project.risk_tier == 0
+  msg := "LC-01-A: Tier-0 projects are blocked"
+}`,
+    "LC-01-B": `package lifecycle.scoping
+
+deny[msg] {
+  input.ai_project.risk_tier == 1
+  not input.ai_project.executive_sponsor
+  msg := "LC-01-B: Tier-1 projects require executive_sponsor"
+}`,
+    "LC-02-A": `package lifecycle.data_governance
+
+deny[msg] {
+  bucket := input.s3_buckets[_]
+  bucket.name == "ai-training-data-prod"
+  bucket.encryption.key_type != "customer_managed"
+  msg := "LC-02-A: training data bucket must use customer-managed KMS"
+}`,
+    "LC-03-C": `package lifecycle.training
+
+deny[msg] {
+  job := input.training_jobs[_]
+  missing := {"project", "cost_center", "data_classification"} - object.keys(job.tags)
+  count(missing) > 0
+  msg := sprintf("LC-03-C: training job %s missing required tags", [job.name])
+}`,
+    "LC-06-A": policyRules[0].rego,
+    "LC-06-B": policyRules[1].rego,
+    "LC-06-C": policyRules[2].rego,
+    "LC-06-D": policyRules[3].rego
+  };
+
+  return snippets[id] ?? `package lifecycle.governance
+
+allow if {
+  input.lifecycle_gate["${id}"].status == "passed"
+}`;
+}
+
 function AppPage({
   page,
   scenario,
@@ -261,6 +404,8 @@ function AppPage({
   selectedRule: ReturnType<typeof evaluatePolicies>[number];
   setSelectedRuleId: (id: string) => void;
 }) {
+  const [expandedLifecycleStage, setExpandedLifecycleStage] = useState(0);
+
   if (page === "Policy Framework") {
     return (
       <>
@@ -315,17 +460,63 @@ function AppPage({
   }
 
   if (page === "AI Lifecycle") {
+    const totalGates = lifecycleStages.reduce((count, stage) => count + stage.gates.length, 0);
+    const failingGates = lifecycleStages.reduce((count, stage) => count + stage.gates.filter((gate) => gate[3] === "failed").length, 0);
+    const passingGates = totalGates - failingGates;
+    const expandedStage = lifecycleStages[expandedLifecycleStage];
+
     return (
       <>
-        <header className="topbar"><div><h1>AI Lifecycle</h1><p>Policy-as-Code governance across the AI system lifecycle</p></div></header>
-        <section className="content-grid middle-content">
-          {lifecycle.map((stage, index) => (
-            <article className="panel rule-detail" key={stage}>
-              <h2>{index + 1}. {stage}</h2>
-              <p>{stage === "Deployment" ? "Deployment is blocked unless OPA returns allow=true for all required AI governance controls." : "Lifecycle evidence is mapped to policy requirements and control ownership."}</p>
-              <div className="rule-meta"><b>{index < 4 ? "Pre-deployment" : "Operational"}</b><b>Policy Evidence</b></div>
-            </article>
-          ))}
+        <header className="lifecycle-header"><div><h1>AI Lifecycle PaC</h1><p>Policy-as-Code enforcement across the full AI/ML lifecycle on AWS</p></div></header>
+
+        <section className="lifecycle-kpis">
+          <article><span>Lifecycle Stages</span><strong>{lifecycleStages.length}</strong><p>End-to-end coverage</p><i>⌬</i></article>
+          <article><span>PaC Gates</span><strong>{totalGates}</strong><p>Total checks</p><i>▱</i></article>
+          <article className="good"><span>Passing</span><strong>{passingGates}</strong><p>Gates compliant</p><i>✓</i></article>
+          <article className="bad"><span>Failing</span><strong>{failingGates}</strong><p>Gates blocked</p><i>×</i></article>
+        </section>
+
+        <section className="lifecycle-legend"><strong>Legend:</strong><span><i className="legend-pass" />Compliant Stage</span><span><i className="legend-fail" />Non-Compliant Stage</span><span><i className="legend-pass" />Gate Pass</span><span><i className="legend-fail" />Gate Fail</span></section>
+
+        <section className="lifecycle-timeline">
+          {lifecycleStages.map((stage, index) => {
+            const passedGateCount = stage.gates.filter((gate) => gate[3] === "passed").length;
+            const failedGateCount = stage.gates.length - passedGateCount;
+            const expanded = expandedLifecycleStage === index;
+            const chips = stage.aws.split(", ");
+
+            return (
+              <article className={`lifecycle-stage-row ${stage.status === "failed" ? "noncompliant" : "compliant"} ${expanded ? "expanded" : ""}`} key={stage.stage}>
+                <button className={`stage-number ${stage.status === "failed" ? "noncompliant" : "compliant"}`} onClick={() => setExpandedLifecycleStage(index)}>{String(index + 1).padStart(2, "0")}</button>
+                <div className="stage-card">
+                  <button className="stage-summary" onClick={() => setExpandedLifecycleStage(expanded ? -1 : index)}>
+                    <div>
+                      <div className="stage-tags"><span className={stage.status === "failed" ? "tag-fail" : "tag-pass"}>{stage.status === "failed" ? "Non-Compliant" : "Compliant"}</span>{chips.map((chip) => <span key={chip}>{chip}</span>)}</div>
+                      <h2>{stage.stage}</h2>
+                      <p>{stage.goal}</p>
+                      <strong className={stage.status === "failed" ? "fail" : "pass"}>{passedGateCount}/{stage.gates.length} gates passing {failedGateCount > 0 ? `| ${failedGateCount} failing` : ""}</strong>
+                    </div>
+                    <span>{expanded ? "⌃" : "⌄"}</span>
+                  </button>
+
+                  {expanded && (
+                    <div className="stage-expanded">
+                      <p className="governed-by">Governed by: {stage.policies.split(", ").map((policy) => <b key={policy}>{policy}</b>)}</p>
+                      {stage.gates.map(([id, title, detail, status]) => (
+                        <div className={`gate-code-card ${status === "failed" ? "failed-gate" : "passed-gate"}`} key={id}>
+                          <div className="gate-title"><strong>{status === "failed" ? "×" : "✓"} {id} - {title}</strong><span>{detail}</span></div>
+                          <div className="mini-code-window">
+                            <div className="mini-code-title"><i className="red-dot" /><i className="yellow-dot" /><i className="green-dot" /><span>{id.toLowerCase()}.rego</span><button>Copy</button></div>
+                            <pre>{lifecycleGateRego(id)}</pre>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </section>
       </>
     );
