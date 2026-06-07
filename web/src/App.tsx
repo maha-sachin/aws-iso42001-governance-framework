@@ -655,11 +655,37 @@ function App() {
   const selectedRule = results.find((rule) => rule.id === selectedRuleId) ?? results[0];
   const affectedResources = selectedRule.findings;
   const totalAffectedResources = failed.reduce((count, rule) => count + rule.findings.length, 0);
-  const resourceSummary = [
-    { label: "S3 Buckets", value: scenario.input.resources.s3Buckets.length, compliant: scenario.input.resources.s3Buckets.filter((bucket) => bucket.encryption).length, nonCompliant: scenario.input.resources.s3Buckets.filter((bucket) => !bucket.encryption).length, icon: "□", tone: "green" },
-    { label: "Bedrock Apps", value: scenario.input.resources.bedrockApps.length, compliant: scenario.input.resources.bedrockApps.filter((app) => app.logging && app.guardrails).length, nonCompliant: scenario.input.resources.bedrockApps.filter((app) => !app.logging || !app.guardrails).length, icon: "◇", tone: "purple" },
-    { label: "IAM Roles", value: scenario.input.resources.iamRoles.length, compliant: scenario.input.resources.iamRoles.filter((role) => role.policy !== "*").length, nonCompliant: scenario.input.resources.iamRoles.filter((role) => role.policy === "*").length, icon: "▣", tone: "amber" },
-    { label: "OPA Rules", value: results.length, compliant: passed, nonCompliant: failed.length, icon: "△", tone: "blue" }
+  const infrastructureRows = [
+    ...scenario.input.resources.s3Buckets.map((bucket) => ({
+      icon: "▤",
+      name: bucket.name,
+      subtitle: "S3 Bucket",
+      highlighted: bucket.name === "aigov-prompt-logs-prod",
+      checks: [
+        { label: "Encryption", passed: bucket.encryption },
+        { label: "Public Access Block", passed: !bucket.public_access }
+      ]
+    })),
+    ...scenario.input.resources.bedrockApps.map((app) => ({
+      icon: "◌",
+      name: app.name,
+      subtitle: app.name === "claims-assistant-bedrock" ? "anthropic.claude-3-sonnet" : app.name === "customer-support-rag" ? "amazon.titan-text-express-v1" : "meta.llama3-70b-instruct-v1",
+      highlighted: false,
+      checks: [
+        { label: "Logging", passed: app.logging },
+        { label: "Guardrails", passed: app.guardrails }
+      ]
+    })),
+    ...scenario.input.resources.iamRoles.map((role) => ({
+      icon: "▣",
+      name: role.name,
+      subtitle: "IAM Role",
+      highlighted: false,
+      checks: [
+        { label: "Least Privilege", passed: role.policy !== "*" },
+        { label: "No Wildcards", passed: role.policy !== "*" }
+      ]
+    }))
   ];
 
   return (
@@ -705,8 +731,7 @@ function App() {
         </section>
 
         <section className="content-grid bottom-content">
-          <article className="panel infra"><div className="panel-title"><h2>AWS Infrastructure Overview</h2><a>Derived from mock input →</a></div><div className="resource-grid">{resourceSummary.map((resource) => <div className="resource-card" key={resource.label}><div className={`icon-box ${resource.tone}`}>{resource.icon}</div><p>{resource.label}</p><strong>{resource.value}</strong><span className="good">{resource.compliant} Compliant</span><span className="bad">{resource.nonCompliant} Non-Compliant</span></div>)}</div></article>
-          <article className="panel runs"><div className="panel-title"><h2>Recent Pipeline Runs</h2><a>OPA gate →</a></div><div className="run-row"><i className={blocked ? "ko" : "ok"}>×</i><div><strong>{scenarioKey === "failed" ? "feature/ai-infra-update" : "main"}</strong><span className={blocked ? "fail-tag" : "pass-tag"}>{blocked ? "Failed" : "Passed"}</span><small>{failed.length} violations found</small></div><p>Current scan<br /><b>OPA/Rego</b></p></div><div className="run-row"><i className="ok">×</i><div><strong>fix/s3-encryption</strong><span className="pass-tag">Passed</span><small>0 violations</small></div><p>Previous scan<br /><b>1m 18s</b></p></div><a>GitHub Actions uses the same allow query →</a></article>
+          <article className="panel infra aws-infra-panel"><div className="aws-infra-header"><div><h2>AWS Infrastructure</h2><span>us-east-1 · 123456789012</span></div></div><div className="aws-infra-list">{infrastructureRows.map((resource) => <div className={`aws-infra-row ${resource.highlighted ? "highlighted" : ""}`} key={`${resource.subtitle}-${resource.name}`}><div className="aws-resource-icon">{resource.icon}</div><div className="aws-resource-name"><strong>{resource.name}</strong><span>{resource.subtitle}</span></div><div className="aws-resource-checks">{resource.checks.map((check) => <span className={check.passed ? "check-pass" : "check-fail"} key={check.label}><i />{check.label}</span>)}</div></div>)}</div></article>
           <article className="panel actions"><h2>Quick Actions</h2><button className="action-button" onClick={() => { setScenarioKey(scenarioKey === "failed" ? "passed" : "failed"); setEvidenceFocus(false); }}><span className="icon-box blue">▶</span><div><strong>Toggle Scenario</strong><small>Switch pass/fail input</small></div></button><button className="action-button" onClick={() => { setSelectedRuleId(failed[0]?.id ?? results[0].id); setEvidenceFocus(true); }}><span className="icon-box amber">⌬</span><div><strong>View Evidence</strong><small>Show named failing resources</small></div></button></article>
         </section>
           </>
