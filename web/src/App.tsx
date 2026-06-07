@@ -544,18 +544,97 @@ function AppPage({
     );
   }
 
+  const failedControls = results.filter((rule) => !rule.passed);
+  const scannedResources =
+    scenario.input.resources.s3Buckets.length +
+    scenario.input.resources.bedrockApps.length +
+    scenario.input.resources.iamRoles.length;
+  const compliantResources =
+    scenario.input.resources.s3Buckets.filter((bucket) => bucket.encryption && !bucket.public_access).length +
+    scenario.input.resources.bedrockApps.filter((app) => app.logging && app.guardrails).length +
+    scenario.input.resources.iamRoles.filter((role) => role.policy !== "*").length;
+  const reportControls = results.filter((rule) => ["DG-001", "TR-001", "RAI-001"].includes(rule.id));
+  const auditTrail = {
+    scan_id: "scan-abc12345xyz",
+    timestamp: "2026-06-07 10:32:15 UTC",
+    environment: scenario.label === "Failed Example" ? "staging" : "production",
+    region: "us-east-1",
+    account_id: "123456789012",
+    input: scenario.filename
+  };
+
   return (
     <>
-      <header className="topbar"><div><h1>Compliance Report</h1><p>Audit evidence generated from OPA/Rego policy evaluation</p></div></header>
+      <header className="topbar"><div><h1>Compliance Report — ISO/IEC 42001:2023</h1><p>Detailed audit report for AWS AI governance Policy-as-Code evaluation</p></div></header>
+
+      <section className="report-status-grid">
+        <article className={`panel report-status ${failedControls.length > 0 ? "non-compliant" : "compliant"}`}>
+          <span>Overall Status</span>
+          <strong>{failedControls.length > 0 ? "NON-COMPLIANT" : "COMPLIANT"}</strong>
+          <p>{failedControls.length} violation(s) found</p>
+        </article>
+        <article className="panel report-status"><span>Resources Scanned</span><strong>{scannedResources}</strong><p>S3 buckets, Bedrock apps, IAM roles</p></article>
+        <article className="panel report-status"><span>Resource Compliance</span><strong>{Math.round((compliantResources / scannedResources) * 100)}%</strong><p>{compliantResources}/{scannedResources} compliant</p></article>
+        <article className="panel report-status"><span>Controls Evaluated</span><strong>{reportControls.length}</strong><p>A.6.2, A.7.2, A.8.4</p></article>
+      </section>
+
+      <section className="panel report-summary">
+        <h2>A. Overall Status</h2>
+        <div className="report-facts">
+          <span>Controls Evaluated: <b>{reportControls.length}</b></span>
+          <span>Controls Passed: <b>{reportControls.filter((rule) => rule.passed).length}</b></span>
+          <span>Controls Failed: <b>{reportControls.filter((rule) => !rule.passed).length}</b></span>
+          <span>Policy: <b>policies/ai-lifecycle-governance.rego</b></span>
+        </div>
+      </section>
+
+      <section className="report-controls">
+        {reportControls.map((control) => (
+          <article className={`panel report-control ${control.passed ? "control-pass" : "control-fail"}`} key={control.id}>
+            <div className="panel-title">
+              <h2>CONTROL {control.iso.replace("ISO/IEC 42001 ", "")} — {control.domain}</h2>
+              <span className={control.passed ? "pass-tag" : "fail-tag"}>{control.passed ? "Passed" : "Failed"}</span>
+            </div>
+            <p>{control.rule}</p>
+            <div className="rule-meta"><b>Violations: {control.findings.length}</b><b>{control.passed ? "All resources compliant" : "Remediation required"}</b></div>
+            <div className="violation-detail-list">
+              {control.findings.length === 0 ? (
+                <div className="report-violation clean"><strong>No violations</strong><p>All evaluated resources meet this control.</p></div>
+              ) : control.findings.map((finding) => {
+                const expected = control.id === "DG-001" ? "Customer Managed KMS Key ARN" : control.id === "TR-001" ? "enabled with valid S3 destination" : "enabled with valid guardrail_id and version";
+                const current = control.id === "DG-001" ? "alias/aws/s3" : "disabled";
+                return (
+                  <div className="report-violation" key={`${control.id}-${finding.name}`}>
+                    <strong>Resource: {finding.name} ({finding.type})</strong>
+                    <span>Issue: {finding.issue}</span>
+                    <span>Expected: {expected}</span>
+                    <span>Current: {current}</span>
+                    <p>Remediation: {control.recommendation}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        ))}
+      </section>
+
       <section className="content-grid middle-content">
-        <article className="panel rule-detail">
-          <h2>Report Summary</h2>
-          <div className="rule-meta"><b>Input: {scenario.filename}</b><b>Policy: policies/ai-lifecycle-governance.rego</b></div>
-          <p>The deployment check generates JSON and Markdown evidence under reports/ and uploads it as a GitHub Actions artifact.</p>
+        <article className="panel input-panel">
+          <h2>C. Audit Trail</h2>
+          <pre>{JSON.stringify(auditTrail, null, 2)}</pre>
         </article>
         <article className="panel input-panel">
-          <h2>Violations</h2>
-          <pre>{JSON.stringify(results.filter((rule) => !rule.passed).map((rule) => ({ id: rule.id, iso: rule.iso, rule: rule.rule, findings: rule.findings })), null, 2)}</pre>
+          <h2>Evidence JSON</h2>
+          <pre>{JSON.stringify({
+  status: failedControls.length > 0 ? "NON-COMPLIANT" : "COMPLIANT",
+  resources_scanned: scannedResources,
+  resource_compliance: `${Math.round((compliantResources / scannedResources) * 100)}%`,
+  controls: reportControls.map((rule) => ({
+    control: rule.iso,
+    status: rule.passed ? "PASSED" : "FAILED",
+    violations: rule.findings
+  }))
+}, null, 2)}</pre>
         </article>
       </section>
     </>
