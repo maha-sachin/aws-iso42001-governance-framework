@@ -15,28 +15,60 @@ variable "mock_aws_ai_infrastructure" {
   description = "Mock AWS AI infrastructure posture evaluated by policy-as-code controls."
   type = object({
     s3 = object({
-      encryption    = bool
+      kms_key_type  = string
       public_access = bool
     })
     bedrock = object({
-      logging    = bool
-      guardrails = bool
+      invocation_logging_enabled = bool
+      guardrails_enabled         = bool
     })
     iam = object({
-      policy = string
+      wildcard_permissions = bool
+    })
+    impact_assessment = object({
+      completed     = bool
+      assessment_id = string
+      owner         = string
+      reviewed_at   = string
+    })
+    risk = object({
+      rating   = string
+      score    = number
+      accepted = bool
+    })
+    production_approval = object({
+      approved = bool
+      approver = string
+      ticket   = string
     })
   })
   default = {
     s3 = {
-      encryption    = false
+      kms_key_type  = "AWS_MANAGED"
       public_access = true
     }
     bedrock = {
-      logging    = false
-      guardrails = false
+      invocation_logging_enabled = false
+      guardrails_enabled         = false
     }
     iam = {
-      policy = "*"
+      wildcard_permissions = true
+    }
+    impact_assessment = {
+      completed     = false
+      assessment_id = ""
+      owner         = ""
+      reviewed_at   = ""
+    }
+    risk = {
+      rating   = "critical"
+      score    = 92
+      accepted = false
+    }
+    production_approval = {
+      approved = false
+      approver = ""
+      ticket   = ""
     }
   }
 }

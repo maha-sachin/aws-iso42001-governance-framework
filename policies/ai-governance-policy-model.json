@@ -1,0 +1,221 @@
+{
+  "corporate_ai_policies": {
+    "responsible_ai": {
+      "name": "Responsible AI Policy",
+      "iso_mapping": "ISO/IEC 42001 A.8.4",
+      "requirements": [
+        "AI systems must use safety controls.",
+        "Harmful content generation must be mitigated.",
+        "Human oversight is required for high-risk use cases."
+      ],
+      "aws_mapping": ["Amazon Bedrock Guardrails", "SageMaker Model Cards"]
+    },
+    "data_privacy": {
+      "name": "Data Privacy Policy",
+      "iso_mapping": "ISO/IEC 42001 A.6.2",
+      "requirements": [
+        "Data must be encrypted at rest and in transit.",
+        "Public access to AI datasets is prohibited.",
+        "Sensitive data must be detected and protected."
+      ],
+      "aws_mapping": ["Amazon S3", "AWS KMS", "Amazon Macie", "Lake Formation"]
+    },
+    "transparency": {
+      "name": "Transparency Policy",
+      "iso_mapping": "ISO/IEC 42001 A.7.2",
+      "requirements": [
+        "AI interactions must be auditable.",
+        "Model invocation logging is required.",
+        "Evidence must be retained for compliance review."
+      ],
+      "aws_mapping": ["Bedrock Invocation Logging", "CloudWatch Logs", "CloudTrail", "Athena"]
+    },
+    "ai_security": {
+      "name": "AI Security Policy",
+      "iso_mapping": "Security Control",
+      "requirements": [
+        "Least privilege access is required.",
+        "Wildcard IAM permissions are prohibited.",
+        "Security monitoring must be enabled."
+      ],
+      "aws_mapping": ["IAM", "AWS Organizations SCP", "CloudTrail", "Security Hub"]
+    },
+    "ai_impact_assessment": {
+      "name": "AI Impact Assessment Policy",
+      "iso_mapping": "ISO/IEC 42001 A.5.2",
+      "requirements": [
+        "AI systems must complete impact assessment before deployment.",
+        "Assessment evidence must identify affected users, data sensitivity, and expected AI impact.",
+        "Assessment ownership and review date must be captured."
+      ],
+      "aws_mapping": ["AWS Service Catalog", "AWS Audit Manager", "S3 Evidence Repository"]
+    },
+    "ai_risk_management": {
+      "name": "AI Risk Management Policy",
+      "iso_mapping": "ISO/IEC 42001 A.5.3",
+      "requirements": [
+        "AI systems must have a documented risk rating.",
+        "Critical AI risk must be reduced or formally accepted before release.",
+        "Risk evidence must be available to CI/CD and audit workflows."
+      ],
+      "aws_mapping": ["AWS Config", "Security Hub", "Audit Manager"]
+    },
+    "production_approval": {
+      "name": "Production Approval Policy",
+      "iso_mapping": "ISO/IEC 42001 A.6.1",
+      "requirements": [
+        "Production AI deployments require documented approval.",
+        "Approver identity and change ticket must be captured.",
+        "Unapproved AI changes must be blocked by the deployment gate."
+      ],
+      "aws_mapping": ["AWS CodePipeline", "AWS CodeBuild", "AWS Systems Manager Change Manager"]
+    }
+  },
+  "operational_ai_policies": {
+    "data_governance": {
+      "name": "Data Governance",
+      "controls": ["Encryption at Rest", "Encryption in Transit", "Data Classification", "Data Retention"]
+    },
+    "model_governance": {
+      "name": "Model Governance",
+      "controls": ["Approved Models Only", "Version Tracking", "Model Approval Process"]
+    },
+    "deployment_governance": {
+      "name": "Deployment Governance",
+      "controls": ["Logging Enabled", "Guardrails Enabled", "Security Review Complete", "Production Approval Complete"]
+    },
+    "monitoring_governance": {
+      "name": "Monitoring Governance",
+      "controls": ["Continuous Compliance Monitoring", "Audit Logging", "Incident Detection"]
+    },
+    "impact_assessment_governance": {
+      "name": "Impact Assessment Governance",
+      "controls": ["Impact Assessment Completed", "Assessment Owner Assigned", "Assessment Review Date Captured"]
+    },
+    "risk_governance": {
+      "name": "Risk Governance",
+      "controls": ["Risk Rating Assigned", "Critical Risk Accepted", "Risk Score Captured"]
+    }
+  },
+  "ai_lifecycle_stages": [
+    {
+      "key": "problem_scoping",
+      "stage": "Problem Definition & Scoping",
+      "status": "passed",
+      "goal": "Define the AI use case and classify risk before work starts.",
+      "gates": [
+        ["LC-01-A", "Risk Tier Classification", "Must declare risk_tier 0-3. Tier-0 projects are blocked.", "passed"],
+        ["LC-01-B", "Executive Sponsor Gate", "Tier-1 high-risk projects require executive approval.", "passed"]
+      ],
+      "aws": "IAM, Service Catalog, AWS Organizations",
+      "aws_components": ["IAM", "Service Catalog", "AWS Organizations"],
+      "controls": ["Risk Tier Classification", "Executive Sponsor Gate"],
+      "policies": "CP-001, CP-002"
+    },
+    {
+      "key": "data_collection",
+      "stage": "Data Collection & Governance",
+      "status": "failed",
+      "goal": "Ingest training data safely with encryption, lineage, and bias screening.",
+      "gates": [
+        ["LC-02-A", "S3 CMK Encryption Gate", "ai-training-data-prod uses AWS-managed KMS instead of a customer-managed key.", "failed"],
+        ["LC-02-B", "Data Lineage Documentation", "Dataset source, license, and collection date are tracked.", "passed"],
+        ["LC-02-C", "Bias Screening Gate", "Dataset bias_score is below or equal to 0.15.", "passed"]
+      ],
+      "aws": "S3, AWS Glue, Lake Formation, KMS",
+      "aws_components": ["S3 training data bucket", "AWS Glue", "Lake Formation", "KMS"],
+      "controls": ["Data classification", "Public access block", "Customer-managed KMS encryption"],
+      "policies": "OP-001, CP-003"
+    },
+    {
+      "key": "model_training",
+      "stage": "Model Training & Experimentation",
+      "status": "failed",
+      "goal": "Train models with reproducibility, metrics, artifact tracking, and tags.",
+      "gates": [
+        ["LC-03-A", "Experiment Tracking", "Training metrics are logged to SageMaker Experiments.", "passed"],
+        ["LC-03-B", "Artifact Encryption", "Model artifacts in S3 use customer-managed KMS keys.", "passed"],
+        ["LC-03-C", "Resource Tagging Gate", "Some training jobs are missing project, cost_center, and data_classification tags.", "failed"]
+      ],
+      "aws": "SageMaker, ECR, CloudWatch",
+      "aws_components": ["SageMaker training jobs", "ECR", "CloudWatch"],
+      "controls": ["Experiment tracking", "Artifact encryption", "Resource tagging"],
+      "policies": "OP-004"
+    },
+    {
+      "key": "model_evaluation",
+      "stage": "Model Evaluation & Bias Assessment",
+      "status": "passed",
+      "goal": "Validate model performance and fairness before approval.",
+      "gates": [
+        ["LC-04-A", "Minimum Accuracy Gate", "Model accuracy is greater than or equal to the 0.85 baseline.", "passed"],
+        ["LC-04-B", "Bias Report Gate", "SageMaker Clarify report exists and fairness ratio is within range.", "passed"]
+      ],
+      "aws": "SageMaker Clarify, Model Monitor",
+      "aws_components": ["SageMaker Clarify", "SageMaker Model Monitor"],
+      "controls": ["Minimum accuracy", "Bias report"],
+      "policies": "CP-002, CP-003, OP-004"
+    },
+    {
+      "key": "model_approval",
+      "stage": "Model Registration & Approval",
+      "status": "passed",
+      "goal": "Register model metadata and capture required approvals.",
+      "gates": [
+        ["LC-05-A", "Registry Metadata Completeness", "Model name, version, training data hash, bias report URI, and approver are present.", "passed"],
+        ["LC-05-B", "Dual Approval Gate", "Tier-1 models require MLOps Lead and AI Risk Officer approvals.", "passed"],
+        ["GOV-001", "Impact Assessment Evidence", "AI impact assessment must be completed before deployment.", "passed"],
+        ["GOV-002", "Risk Rating Evidence", "Critical AI risk must be reduced or formally accepted.", "passed"]
+      ],
+      "aws": "SageMaker Model Registry, IAM, SNS",
+      "aws_components": ["SageMaker Model Registry", "IAM", "SNS"],
+      "controls": ["Registry metadata", "Dual approval", "Impact assessment", "Risk rating"],
+      "policies": "CP-002, OP-004, GOV-001, GOV-002"
+    },
+    {
+      "key": "production_deployment",
+      "stage": "Production Deployment",
+      "status": "failed",
+      "goal": "Deploy to AWS only after ISO 42001 controls pass.",
+      "gates": [
+        ["DG-001", "A.6.2 Data Governance", "ai-training-data-prod violates S3 customer-managed KMS encryption.", "failed"],
+        ["TR-001", "A.7.2 Transparency", "internal-summarizer has Bedrock invocation logging disabled.", "failed"],
+        ["RAI-001", "A.8.4 Responsible AI", "code-assistant has Bedrock Guardrails disabled.", "failed"],
+        ["SEC-001", "IAM Least Privilege", "BedrockExecutionRole still allows wildcard permissions.", "failed"],
+        ["GOV-003", "Production Approval", "Production approval evidence is required before release.", "failed"]
+      ],
+      "aws": "Bedrock, SageMaker Endpoints, S3, CloudWatch, KMS",
+      "aws_components": ["Amazon Bedrock application", "IAM execution role", "S3", "CloudWatch", "KMS"],
+      "controls": ["Bedrock Guardrails", "Least privilege IAM", "Security review", "Production approval"],
+      "policies": "OP-001, OP-002, OP-003, GOV-003"
+    },
+    {
+      "key": "runtime_monitoring",
+      "stage": "Runtime Monitoring & Drift Detection",
+      "status": "passed",
+      "goal": "Detect model degradation and operational risk in production.",
+      "gates": [
+        ["LC-07-A", "Monitoring Schedule Gate", "SageMaker Model Monitor is enabled for all endpoints.", "passed"],
+        ["LC-07-B", "Drift Alert Gate", "Drift thresholds and SNS alerts are configured.", "passed"]
+      ],
+      "aws": "SageMaker Model Monitor, CloudWatch, CloudTrail",
+      "aws_components": ["SageMaker Model Monitor", "CloudWatch", "CloudTrail"],
+      "controls": ["Invocation logging", "Incident detection", "Continuous compliance"],
+      "policies": "CP-001, OP-002"
+    },
+    {
+      "key": "retirement",
+      "stage": "Model Retirement & Data Purge",
+      "status": "passed",
+      "goal": "Decommission models safely and preserve audit trails.",
+      "gates": [
+        ["LC-08-A", "Retirement Approval Gate", "AI System Owner approval and 90-day notice are required.", "passed"],
+        ["LC-08-B", "Audit Trail Preservation", "Invocation logs are archived for 24 months before deletion.", "passed"]
+      ],
+      "aws": "SageMaker, S3, KMS, CloudTrail",
+      "aws_components": ["SageMaker", "S3", "KMS", "CloudTrail"],
+      "controls": ["Retirement approval", "Audit trail preservation"],
+      "policies": "CP-003, OP-001"
+    }
+  ]
+}

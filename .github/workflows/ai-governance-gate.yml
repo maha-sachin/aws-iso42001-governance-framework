@@ -102,6 +102,30 @@ jobs:
             --input "${{ steps.scenario.outputs.input }}" \
             'data.ai.lifecycle.governance.deny[_].id == "SEC-001"'
 
+      - name: A.5.2 Impact Assessment Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "GOV-001"'
+
+      - name: A.5.3 Risk Rating Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "GOV-002"'
+
+      - name: A.6.1 Production Approval Check
+        continue-on-error: true
+        run: |
+          opa eval --fail-defined --format pretty \
+            --data policies/ai-lifecycle-governance.rego \
+            --input "${{ steps.scenario.outputs.input }}" \
+            'data.ai.lifecycle.governance.deny[_].id == "GOV-003"'
+
       - name: Gate Decision - Enforce Policy-as-Code Deployment Check
         run: node scripts/pac-deployment-check.mjs "${{ steps.scenario.outputs.input }}"
 
@@ -113,7 +137,7 @@ jobs:
           path: reports/
 
   blocked-deployment-simulation:
-    name: Negative Control - Block Non-Compliant Deployment
+    name: Policy Self-Test - Bad Input Must Be Blocked
     runs-on: ubuntu-latest
 
     steps:
@@ -148,6 +172,21 @@ jobs:
           fi
 
           echo "Failed scenario was correctly blocked by Policy-as-Code."
+          {
+            echo "## Policy Self-Test"
+            echo ""
+            echo "This job passes only when \`failed-example.json\` is rejected by the deployment gate."
+            echo ""
+            echo "| Test input | Expected result | Actual result |"
+            echo "| --- | --- | --- |"
+            echo "| failed-example.json | Blocked / non-zero exit | Blocked / non-zero exit |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify passed example is approved
-        run: node scripts/pac-deployment-check.mjs mock-infra/passed-example.json
+        run: |
+          node scripts/pac-deployment-check.mjs mock-infra/passed-example.json
+          {
+            echo "| passed-example.json | Approved / zero exit | Approved / zero exit |"
+            echo ""
+            echo "The selected workflow scenario is enforced by the **OPA/Rego Deployment Gate** job. This self-test is separate and proves both negative and positive examples behave correctly."
+          } >> "$GITHUB_STEP_SUMMARY"

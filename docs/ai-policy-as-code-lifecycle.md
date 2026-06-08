@@ -2,6 +2,8 @@
 
 This framework translates corporate AI governance policies into operational controls and then into Policy-as-Code checks across the AWS AI lifecycle.
 
+The shared policy model is stored in `policies/ai-governance-policy-model.json`. Terraform and the dashboard both read this file for corporate policies, operational policies, and lifecycle stage definitions.
+
 ## Corporate AI Policies
 
 | Policy | Requirements | AWS Mapping |
@@ -10,6 +12,9 @@ This framework translates corporate AI governance policies into operational cont
 | Data Privacy Policy | Encryption, public access prohibition, sensitive data protection | Amazon S3, AWS KMS, Macie, Lake Formation |
 | Transparency Policy | Auditable AI interactions and logging | Bedrock Invocation Logging, CloudWatch Logs, CloudTrail, Athena |
 | AI Security Policy | Least privilege, no wildcard permissions, security monitoring | IAM, SCPs, Security Hub, CloudTrail |
+| AI Impact Assessment Policy | Impact assessment evidence before deployment | AWS Audit Manager, S3 Evidence Repository |
+| AI Risk Management Policy | Risk rating and critical risk acceptance | AWS Config, Security Hub, Audit Manager |
+| Production Approval Policy | Approved production change before release | CodePipeline, CodeBuild, Systems Manager Change Manager |
 
 ## Operational Policies
 
@@ -17,6 +22,8 @@ This framework translates corporate AI governance policies into operational cont
 - Model Governance: approved models only, version tracking, model approval process.
 - Deployment Governance: logging enabled, guardrails enabled, security review complete.
 - Monitoring Governance: continuous compliance monitoring, audit logging, incident detection.
+- Impact Assessment Governance: completed assessment, named owner, review date.
+- Risk Governance: risk rating assigned, critical risk accepted, risk score captured.
 
 ## AWS AI Lifecycle Enforcement
 
@@ -32,10 +39,13 @@ The Terraform implementation computes policy violations in `terraform/pac_lifecy
 
 Controls enforced:
 
-- `DG-001`: S3 buckets used for AI data must use encryption.
+- `DG-001`: S3 buckets used for AI data must use customer-managed KMS keys.
 - `TR-001`: Bedrock invocation logging must be enabled.
 - `RAI-001`: Bedrock Guardrails must be enabled.
 - `SEC-001`: IAM policies cannot use wildcard permissions.
+- `GOV-001`: AI impact assessment must be completed.
+- `GOV-002`: Critical AI risk must be accepted before deployment.
+- `GOV-003`: Production approval is required.
 
 The deployment gate returns `PASS` only when all controls pass. Otherwise, the framework reports violations, recommendations, compliance score, and risk level.
 

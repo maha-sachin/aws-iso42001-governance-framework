@@ -1,40 +1,6 @@
 locals {
   ai_lifecycle_stages = {
-    data_collection = {
-      name           = "Data Collection"
-      aws_components = ["S3 training data bucket", "Macie sensitive data discovery"]
-      controls       = ["Data classification", "Public access block", "Encryption at rest"]
-    }
-
-    data_preparation = {
-      name           = "Data Preparation"
-      aws_components = ["Lake Formation governed table", "KMS key"]
-      controls       = ["Encryption in transit", "Data retention", "Fine-grained access"]
-    }
-
-    model_development = {
-      name           = "Model Development"
-      aws_components = ["SageMaker model package", "Model card"]
-      controls       = ["Approved models only", "Version tracking", "Model owner assignment"]
-    }
-
-    model_validation = {
-      name           = "Model Validation"
-      aws_components = ["SageMaker model card review", "Human approval workflow"]
-      controls       = ["Human oversight", "Bias and safety review", "Approval evidence"]
-    }
-
-    deployment = {
-      name           = "Deployment"
-      aws_components = ["Amazon Bedrock application", "IAM execution role"]
-      controls       = ["Bedrock Guardrails", "Least privilege IAM", "Security review"]
-    }
-
-    monitoring = {
-      name           = "Monitoring"
-      aws_components = ["CloudWatch Logs", "CloudTrail", "Security Hub"]
-      controls       = ["Invocation logging", "Incident detection", "Continuous compliance"]
-    }
+    for stage in local.ai_governance_policy_model.ai_lifecycle_stages : stage.key => stage
   }
 
   pac_rules = {
@@ -42,10 +8,10 @@ locals {
       id             = "DG-001"
       iso            = "ISO/IEC 42001 A.6.2"
       policy         = "Data Privacy Policy"
-      rule           = "S3 buckets used for AI data must use encryption."
-      passed         = var.mock_aws_ai_infrastructure.s3.encryption
-      violation      = "s3.encryption is false"
-      recommendation = "Enable S3 default encryption with AWS KMS."
+      rule           = "S3 buckets used for AI data must use customer-managed KMS keys."
+      passed         = var.mock_aws_ai_infrastructure.s3.kms_key_type == "CUSTOMER_MANAGED"
+      violation      = "s3.kms_key_type is not CUSTOMER_MANAGED"
+      recommendation = "Use customer-managed KMS keys for every evaluated S3 bucket."
     }
 
     invocation_logging = {
@@ -53,9 +19,9 @@ locals {
       iso            = "ISO/IEC 42001 A.7.2"
       policy         = "Transparency Policy"
       rule           = "Bedrock invocation logging must be enabled."
-      passed         = var.mock_aws_ai_infrastructure.bedrock.logging
-      violation      = "bedrock.logging is false"
-      recommendation = "Enable Bedrock invocation logging to CloudWatch Logs."
+      passed         = var.mock_aws_ai_infrastructure.bedrock.invocation_logging_enabled
+      violation      = "bedrock.invocation_logging_enabled is false"
+      recommendation = "Enable Bedrock invocation logging for every evaluated model."
     }
 
     guardrails_enabled = {
@@ -63,9 +29,9 @@ locals {
       iso            = "ISO/IEC 42001 A.8.4"
       policy         = "Responsible AI Policy"
       rule           = "Bedrock Guardrails must be enabled for generative AI workloads."
-      passed         = var.mock_aws_ai_infrastructure.bedrock.guardrails
-      violation      = "bedrock.guardrails is false"
-      recommendation = "Attach an approved Bedrock Guardrail before deployment."
+      passed         = var.mock_aws_ai_infrastructure.bedrock.guardrails_enabled
+      violation      = "bedrock.guardrails_enabled is false"
+      recommendation = "Enable Bedrock Guardrails for every evaluated model."
     }
 
     least_privilege_iam = {
@@ -73,9 +39,39 @@ locals {
       iso            = "Security Control"
       policy         = "AI Security Policy"
       rule           = "IAM policies cannot use wildcard permissions."
-      passed         = var.mock_aws_ai_infrastructure.iam.policy != "*"
-      violation      = "iam.policy is *"
+      passed         = !var.mock_aws_ai_infrastructure.iam.wildcard_permissions
+      violation      = "iam.wildcard_permissions is true"
       recommendation = "Replace wildcard permissions with scoped least-privilege IAM statements."
+    }
+
+    impact_assessment = {
+      id             = "GOV-001"
+      iso            = "ISO/IEC 42001 A.5.2"
+      policy         = "AI Impact Assessment Policy"
+      rule           = "AI impact assessment must be completed."
+      passed         = var.mock_aws_ai_infrastructure.impact_assessment.completed
+      violation      = "impact_assessment.completed is false"
+      recommendation = "Complete the AI impact assessment and attach the assessment ID before CI/CD deployment."
+    }
+
+    risk_rating = {
+      id             = "GOV-002"
+      iso            = "ISO/IEC 42001 A.5.3"
+      policy         = "AI Risk Management Policy"
+      rule           = "Critical AI risk must be accepted before deployment."
+      passed         = var.mock_aws_ai_infrastructure.risk.rating != "critical" || var.mock_aws_ai_infrastructure.risk.accepted
+      violation      = "risk.rating is critical and risk.accepted is false"
+      recommendation = "Reduce the AI risk rating or document formal risk acceptance before the deployment gate can pass."
+    }
+
+    production_approval = {
+      id             = "GOV-003"
+      iso            = "ISO/IEC 42001 A.6.1"
+      policy         = "Production Approval Policy"
+      rule           = "Production approval is required."
+      passed         = var.mock_aws_ai_infrastructure.production_approval.approved
+      violation      = "production_approval.approved is false"
+      recommendation = "Capture production approval with an approver and change ticket before release."
     }
   }
 
@@ -102,7 +98,7 @@ resource "null_resource" "ai_lifecycle_stage" {
   for_each = local.ai_lifecycle_stages
 
   triggers = {
-    stage          = each.value.name
+    stage          = each.value.stage
     aws_components = jsonencode(each.value.aws_components)
     controls       = jsonencode(each.value.controls)
     gate_decision  = local.gate_decision
