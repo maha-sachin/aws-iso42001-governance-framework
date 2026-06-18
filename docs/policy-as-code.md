@@ -2,6 +2,8 @@
 
 Layer 3 implements Open Policy Agent policies using Rego. These rules translate the corporate and operational AI governance requirements into deployment gates over mock AWS AI infrastructure.
 
+The project also includes `agentcore-policies/*.cedar` examples to show how Amazon Bedrock AgentCore Policy can complement OPA at runtime. OPA/Rego remains the CI/CD deployment gate; Cedar represents gateway-level authorization for agent tool calls after deployment.
+
 Policy file:
 
 - `policies/ai-lifecycle-governance.rego`
@@ -108,6 +110,14 @@ Example violation:
 }
 ```
 
+## Governance Evidence Controls
+
+The current Rego policy also validates:
+
+- `GOV-001`: AI impact assessment must be completed.
+- `GOV-002`: Critical AI risk must be formally accepted before deployment.
+- `GOV-003`: Production approval must be present before release.
+
 ## Evaluation Commands
 
 ```bash
@@ -126,4 +136,14 @@ opa eval --format pretty \
 
 ## Terraform Integration
 
-`terraform/pac_lifecycle.tf` mirrors these same four controls as Terraform-native computed policy checks. The `deployment_gate` resource and `compliance_summary` output expose pass/fail state, failed controls, compliance score, risk level, and recommendations.
+`terraform/pac_lifecycle.tf` mirrors these controls as Terraform-native computed policy checks. The `deployment_gate` resource and `compliance_summary` output expose pass/fail state, failed controls, compliance score, risk level, and recommendations.
+
+## Runtime Agent Governance Extension
+
+The runtime examples are in:
+
+- `agentcore-policies/approved-agent-policy.cedar`
+- `agentcore-policies/blocked-agent-policy.cedar`
+- `agentcore-policies/runtime-agent-request.json`
+
+These examples model how AgentCore Policy can deny a runtime agent tool call when risk acceptance is missing or Bedrock Guardrails reports a blocked safety result.

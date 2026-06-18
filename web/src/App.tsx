@@ -3,9 +3,12 @@ import failedMockInfrastructure from "../../mock-infra/failed-example.json";
 import passedMockInfrastructure from "../../mock-infra/passed-example.json";
 import aiGovernancePolicyModel from "../../policies/ai-governance-policy-model.json";
 import aiLifecycleGovernanceRego from "../../policies/ai-lifecycle-governance.rego?raw";
+import approvedAgentCorePolicy from "../../agentcore-policies/approved-agent-policy.cedar?raw";
+import blockedAgentCorePolicy from "../../agentcore-policies/blocked-agent-policy.cedar?raw";
+import runtimeAgentRequest from "../../agentcore-policies/runtime-agent-request.json";
 
 type ScenarioKey = "failed" | "passed";
-type PageKey = "Dashboard" | "Policy Framework" | "Policies (OPA)" | "AI Lifecycle" | "CI/CD Pipeline" | "Compliance Report";
+type PageKey = "Dashboard" | "Policy Framework" | "Policies (OPA)" | "AI Lifecycle" | "Runtime Governance" | "CI/CD Pipeline" | "Compliance Report";
 
 type ResourceFinding = {
   type: "S3 Bucket" | "Bedrock App" | "IAM Role" | "Governance Evidence" | "Risk Record" | "Approval Evidence";
@@ -62,6 +65,25 @@ type LifecycleStage = {
   gates: LifecycleGate[];
   aws: string;
   policies: string;
+};
+
+type RuntimeAgentRequest = {
+  principal: string;
+  action: string;
+  resource: string;
+  context: {
+    input: {
+      application: string;
+      environment: string;
+      impactAssessmentCompleted: boolean;
+      riskRating: "low" | "medium" | "high" | "critical";
+      riskAccepted: boolean;
+      productionApproved: boolean;
+      guardrailAction: "NONE" | "BLOCKED";
+      guardrailFindings: string[];
+    };
+  };
+  expected_decision: "ALLOW" | "DENY";
 };
 
 function normalizeInfrastructureInput(input: InfrastructureInput): EvaluatedInfrastructureInput {
@@ -252,8 +274,24 @@ const policyRules: PolicyRule[] = [
   }
 ];
 
-const nav: PageKey[] = ["Dashboard",  "Policies (OPA)", "AI Lifecycle", "CI/CD Pipeline"];
+const nav: PageKey[] = ["Dashboard",  "Policies (OPA)", "AI Lifecycle", "Runtime Governance", "CI/CD Pipeline"];
 const lifecycleStages = aiGovernancePolicyModel.ai_lifecycle_stages as unknown as LifecycleStage[];
+const runtimeRequest = runtimeAgentRequest as RuntimeAgentRequest;
+
+function evaluateRuntimeAgentRequest(request: RuntimeAgentRequest) {
+  const input = request.context.input;
+  const blockers = [
+    !input.impactAssessmentCompleted ? "Impact assessment is not complete." : "",
+    input.riskRating === "critical" && !input.riskAccepted ? "Critical runtime risk has not been accepted." : "",
+    !input.productionApproved ? "Production approval is missing." : "",
+    input.guardrailAction === "BLOCKED" ? `Bedrock Guardrails blocked the request: ${input.guardrailFindings.join(", ")}.` : ""
+  ].filter(Boolean);
+
+  return {
+    decision: blockers.length > 0 ? "DENY" : "ALLOW",
+    blockers
+  };
+}
 
 function evaluatePolicies(input: EvaluatedInfrastructureInput) {
   return policyRules.map((rule) => {
@@ -539,6 +577,81 @@ function AppPage({
               </article>
             );
           })}
+        </section>
+      </>
+    );
+  }
+
+  if (page === "Runtime Governance") {
+    const runtimeDecision = evaluateRuntimeAgentRequest(runtimeRequest);
+    const runtimeLayers = [
+      ["AgentCore Gateway", "Runtime boundary where agent tool traffic is intercepted before a downstream tool, model, or API is called."],
+      ["AgentCore Policy", "Cedar policies decide whether the agent can call a tool for this principal, action, resource, and context."],
+      ["Bedrock Guardrails", "Prompt attack, harmful content, and sensitive information checks become runtime safety evidence for the policy decision."],
+      ["CloudWatch Evidence", "Policy decisions and runtime safety signals can be logged for audit, troubleshooting, and governance reporting."]
+    ];
+    const runtimeComparison = [
+      ["Pre-deployment", "OPA/Rego", "Validates Terraform and mock AWS AI infrastructure before deployment."],
+      ["Runtime", "AgentCore Policy/Cedar", "Controls what an AI agent can do after deployment through gateway-level authorization."],
+      ["Runtime Safety", "Bedrock Guardrails", "Evaluates prompts, tool inputs, and model responses for safety and privacy risks."],
+      ["Evidence", "Dashboard", "Shows both pipeline controls and runtime governance evidence in one governance view."]
+    ];
+
+    return (
+      <>
+        <header className="topbar"><div><h1>Runtime Agent Governance</h1><p>Amazon Bedrock AgentCore Policy and Guardrails as the runtime layer after CI/CD approval</p></div></header>
+
+        <section className="runtime-hero">
+          <article className="panel runtime-summary">
+            <h2>Why Add AgentCore Policy?</h2>
+            <p>OPA/Rego blocks non-compliant infrastructure before deployment. AgentCore Policy adds deterministic runtime authorization for agent tool calls after deployment, outside of the agent code.</p>
+            <div className="runtime-flow">
+              {["Agent request", "AgentCore Gateway", "Cedar policy", "Guardrails signal", "Allow or deny"].map((step) => <span key={step}>{step}</span>)}
+            </div>
+          </article>
+          <article className={`panel runtime-decision ${runtimeDecision.decision === "ALLOW" ? "decision-allow" : "decision-deny"}`}>
+            <span>Mock Runtime Decision</span>
+            <strong>{runtimeDecision.decision}</strong>
+            <p>{runtimeDecision.blockers.length} blocker(s) from runtime authorization and safety evidence</p>
+          </article>
+        </section>
+
+        <section className="content-grid middle-content">
+          <article className="panel rule-detail">
+            <h2>Approved Tool Policy <span>agentcore-policies/approved-agent-policy.cedar</span></h2>
+            <p>Allows low or medium risk approved governance tools only when impact assessment, production approval, and Guardrails evidence are clean.</p>
+            <pre>{approvedAgentCorePolicy}</pre>
+          </article>
+          <article className="panel rule-detail">
+            <h2>Blocking Policy <span>agentcore-policies/blocked-agent-policy.cedar</span></h2>
+            <p>Blocks production tool calls when risk acceptance is missing or Bedrock Guardrails returns a blocked runtime safety result.</p>
+            <pre>{blockedAgentCorePolicy}</pre>
+          </article>
+          <article className="panel input-panel">
+            <h2>Runtime Request Context</h2>
+            <pre>{JSON.stringify(runtimeRequest, null, 2)}</pre>
+          </article>
+        </section>
+
+        <section className="content-grid bottom-content runtime-bottom">
+          <article className="panel">
+            <h2>Runtime Control Layers</h2>
+            <div className="pipeline-steps">
+              {runtimeLayers.map(([title, detail]) => <div className="pipeline-step" key={title}><strong>{title}</strong><span>{detail}</span></div>)}
+            </div>
+          </article>
+          <article className="panel">
+            <h2>How This Complements OPA</h2>
+            <div className="runtime-matrix">
+              {runtimeComparison.map(([layer, tool, purpose]) => (
+                <div className="runtime-matrix-row" key={layer}>
+                  <strong>{layer}</strong>
+                  <b>{tool}</b>
+                  <span>{purpose}</span>
+                </div>
+              ))}
+            </div>
+          </article>
         </section>
       </>
     );

@@ -224,3 +224,25 @@ h1, h2, h3, p { margin-top: 0; } h1 { margin: 0 0 4px; font-size: 32px; } .topba
 .enforcement-note strong { color: #f8fafc; }
 @media (max-width: 1200px) { .framework-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .framework-policy-body { padding-left: 26px; } }
 @media (max-width: 720px) { .framework-kpis { grid-template-columns: 1fr; } .framework-policy-head { grid-template-columns: 1fr; } .policy-id-badge { width: 86px; } }
+
+.runtime-hero { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; margin-bottom: 24px; }
+.runtime-summary { min-height: 0; }
+.runtime-summary p { margin-bottom: 18px; color: #cbd5e1; font-weight: 700; line-height: 1.55; }
+.runtime-flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.runtime-flow span { position: relative; min-height: 56px; display: grid; place-items: center; padding: 10px; border: 1px solid rgba(56, 189, 248, 0.26); border-radius: 8px; color: #dbeafe; background: rgba(14, 165, 233, 0.1); font-size: 13px; font-weight: 900; text-align: center; }
+.runtime-flow span:not(:last-child)::after { content: ">"; position: absolute; right: -10px; color: #38bdf8; font-weight: 900; }
+.runtime-decision { min-height: 0; display: grid; align-content: center; }
+.runtime-decision span { color: #94a3b8; font-size: 13px; font-weight: 900; text-transform: uppercase; }
+.runtime-decision strong { display: block; margin: 12px 0; font-size: 42px; line-height: 1; }
+.runtime-decision p { margin: 0; color: #aab7ca; font-weight: 700; }
+.runtime-decision.decision-deny { border-color: rgba(239, 68, 68, 0.42); }
+.runtime-decision.decision-deny strong { color: #fb4d57; }
+.runtime-decision.decision-allow { border-color: rgba(34, 197, 94, 0.42); }
+.runtime-decision.decision-allow strong { color: #22c55e; }
+.runtime-bottom { align-items: start; }
+.runtime-matrix { display: grid; gap: 12px; }
+.runtime-matrix-row { display: grid; grid-template-columns: 140px 170px minmax(0, 1fr); gap: 12px; align-items: center; padding: 15px 16px; border: 1px solid rgba(148, 163, 184, 0.13); border-radius: 10px; background: rgba(15, 28, 49, 0.62); }
+.runtime-matrix-row strong { color: #f8fafc; }
+.runtime-matrix-row b { color: #38bdf8; }
+.runtime-matrix-row span { color: #94a3b8; font-weight: 700; }
+@media (max-width: 1180px) { .runtime-hero, .runtime-flow, .runtime-matrix-row { grid-template-columns: 1fr; } .runtime-flow span:not(:last-child)::after { display: none; } }

@@ -1,0 +1,21 @@
+{
+  "principal": "arn:aws:sts::123456789012:assumed-role/AIGovernanceAgentRole",
+  "action": "AIGovernanceTools___invoke_production_action",
+  "resource": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/ai-governance-demo",
+  "context": {
+    "input": {
+      "application": "customer-support-ai",
+      "environment": "production",
+      "impactAssessmentCompleted": true,
+      "riskRating": "critical",
+      "riskAccepted": false,
+      "productionApproved": true,
+      "guardrailAction": "BLOCKED",
+      "guardrailFindings": [
+        "prompt_attack_detected",
+        "sensitive_information_detected"
+      ]
+    }
+  },
+  "expected_decision": "DENY"
+}

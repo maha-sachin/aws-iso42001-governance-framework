@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-This project is a Policy-as-Code AI governance platform for AWS AI workloads. It maps ISO 42001-inspired governance requirements to automated OPA/Rego checks, CI/CD deployment gates, compliance evidence, and dashboard visualization.
+This project is a Policy-as-Code AI governance platform for AWS AI workloads. It maps ISO 42001-inspired governance requirements to automated OPA/Rego checks, CI/CD deployment gates, runtime agent governance examples, compliance evidence, and dashboard visualization.
 
 ## Layered Architecture
 
@@ -19,6 +19,12 @@ flowchart TB
     CICD["GitHub Actions"]
   end
 
+  subgraph RT["Runtime Agent Governance Layer"]
+    AGW["AgentCore Gateway"]
+    CEDAR["AgentCore Policy / Cedar"]
+    GR["Bedrock Guardrails Runtime Signal"]
+  end
+
   subgraph AWS["AWS AI Governance Targets"]
     S3["Amazon S3 and KMS"]
     BEDROCK["Amazon Bedrock"]
@@ -30,6 +36,7 @@ flowchart TB
     DASH["React Dashboard"]
     OPAUI["Policies OPA Page"]
     LIFE["AI Lifecycle Page"]
+    RUNTIME["Runtime Governance Page"]
     REPORT["Compliance Reports"]
   end
 
@@ -39,6 +46,10 @@ flowchart TB
   INPUT --> OPA
   OPA --> GATE
   GATE --> CICD
+  CICD --> AGW
+  AGW --> CEDAR
+  GR --> CEDAR
+  CEDAR --> REPORT
   OPA --> S3
   OPA --> BEDROCK
   OPA --> IAM
@@ -47,6 +58,7 @@ flowchart TB
   REPORT --> DASH
   OPA --> OPAUI
   LC --> LIFE
+  CEDAR --> RUNTIME
   LOGS --> REPORT
 ```
 
