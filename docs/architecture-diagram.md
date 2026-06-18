@@ -20,6 +20,8 @@ flowchart TB
   end
 
   subgraph RT["Runtime Agent Governance Layer"]
+    ASK["Ask AI Agent Demo"]
+    TOOL["Mock Tool Selection"]
     AGW["AgentCore Gateway"]
     CEDAR["AgentCore Policy / Cedar"]
     GR["Bedrock Guardrails Runtime Signal"]
@@ -46,7 +48,9 @@ flowchart TB
   INPUT --> OPA
   OPA --> GATE
   GATE --> CICD
-  CICD --> AGW
+  CICD --> ASK
+  ASK --> TOOL
+  TOOL --> AGW
   AGW --> CEDAR
   GR --> CEDAR
   CEDAR --> REPORT
@@ -80,6 +84,50 @@ flowchart LR
   APPROVE --> EVIDENCE
 ```
 
+## Runtime Agent Governance Flow
+
+```mermaid
+flowchart LR
+  USER["User Prompt"] --> ASK["Ask AI Agent Panel"]
+  ASK --> AGENT["Mock Agent"]
+  AGENT --> TOOL{"Select Tool"}
+  TOOL --> SUMMARY["generate_compliance_summary"]
+  TOOL --> PROD["invoke_production_action"]
+  SUMMARY --> REQ["Runtime Request Context"]
+  PROD --> REQ
+  REQ --> CEDAR["AgentCore Policy / Cedar Evaluation"]
+  REQ --> GR["Bedrock Guardrails Signal"]
+  GR --> CEDAR
+  CEDAR --> DECISION{"ALLOW or DENY?"}
+  DECISION -- ALLOW --> ALLOW["Tool call allowed"]
+  DECISION -- DENY --> DENY["Blocked at gateway"]
+  ALLOW --> UI["Dashboard Evidence"]
+  DENY --> UI
+```
+
+## End-to-End Governance Flow
+
+```mermaid
+flowchart TB
+  DEV["Developer updates Terraform or AI config"] --> PR["Pull Request / Push"]
+  PR --> OPA["OPA/Rego CI/CD Gate"]
+  OPA --> INFRA_DECISION{"Infrastructure compliant?"}
+  INFRA_DECISION -- No --> BLOCK_DEPLOY["Block deployment"]
+  INFRA_DECISION -- Yes --> DEPLOY["Deploy approved AWS AI infrastructure"]
+  DEPLOY --> RUNTIME["AI agent runtime"]
+  RUNTIME --> GATEWAY["AgentCore Gateway boundary"]
+  GATEWAY --> POLICY["Cedar runtime authorization"]
+  GATEWAY --> GUARDRAILS["Bedrock Guardrails safety signal"]
+  GUARDRAILS --> POLICY
+  POLICY --> ACTION_DECISION{"Tool call allowed?"}
+  ACTION_DECISION -- No --> BLOCK_TOOL["Deny tool call"]
+  ACTION_DECISION -- Yes --> ALLOW_TOOL["Allow tool call"]
+  BLOCK_DEPLOY --> EVIDENCE["Governance evidence"]
+  BLOCK_TOOL --> EVIDENCE
+  ALLOW_TOOL --> EVIDENCE
+  EVIDENCE --> DASH["React dashboard"]
+```
+
 ## Policy Checks
 
 ```mermaid
@@ -90,11 +138,17 @@ flowchart TB
   OPA --> TR["TR-001 / A.7.2 Bedrock logging"]
   OPA --> RAI["RAI-001 / A.8.4 Bedrock Guardrails"]
   OPA --> SEC["SEC-001 IAM wildcard blocked"]
+  OPA --> GOV1["GOV-001 Impact assessment"]
+  OPA --> GOV2["GOV-002 Risk acceptance"]
+  OPA --> GOV3["GOV-003 Production approval"]
 
   DG --> S3["Amazon S3 + AWS KMS"]
   TR --> BRLOG["Bedrock Invocation Logging"]
   RAI --> BRGR["Bedrock Guardrails"]
   SEC --> IAM["AWS IAM"]
+  GOV1 --> EVIDENCE1["Governance evidence"]
+  GOV2 --> RISK["Risk record"]
+  GOV3 --> APPROVAL["Approval ticket"]
 ```
 
 ## Demo Flow
@@ -106,6 +160,8 @@ sequenceDiagram
   participant OPA as OPA/Rego
   participant Gate as Deployment Gate Script
   participant CI as GitHub Actions
+  participant Agent as Ask AI Agent
+  participant Cedar as Runtime Policy
   participant UI as React Dashboard
 
   User->>Input: Select failed-example.json
@@ -121,4 +177,9 @@ sequenceDiagram
   Gate-->>CI: Exit 0
   CI-->>User: Deployment approved
   Gate-->>UI: Compliance score 100%
+
+  User->>Agent: Ask for production action
+  Agent->>Cedar: Submit runtime tool call context
+  Cedar-->>Agent: DENY if approval/risk/Guardrails evidence fails
+  Agent-->>UI: Show runtime decision and reason
 ```

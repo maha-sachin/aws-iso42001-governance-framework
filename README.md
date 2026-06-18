@@ -41,6 +41,7 @@ aws-iso42001-governance-framework/
 │       ├── monitoring/            # ISO 42001 §9 — Performance & Monitoring
 │       └── compliance-controls/   # ISO 42001 §9.1 — Audit & Evidence
 ├── policies/                      # OPA/Rego and AWS policy documents
+├── agentcore-policies/            # AgentCore Policy/Cedar runtime governance examples
 ├── mock-infra/                    # Pass/fail input examples for OPA
 ├── scripts/                       # Compliance report generation
 ├── web/                           # React dashboard
@@ -115,8 +116,10 @@ Key files:
 - `terraform/policy_framework.tf` defines corporate and operational AI policies.
 - `terraform/pac_lifecycle.tf` implements lifecycle stage gates and Terraform-native PaC evaluation.
 - `policies/ai-lifecycle-governance.rego` contains the equivalent OPA/Rego controls.
+- `agentcore-policies/*.cedar` contains runtime agent authorization examples modeled after Amazon Bedrock AgentCore Policy.
 - `mock-infra/failed-example.json` and `mock-infra/passed-example.json` provide demo input postures.
 - `docs/ai-policy-as-code-lifecycle.md` documents the governance lifecycle.
+- `docs/runtime-agent-governance.md` documents the runtime agent governance extension.
 
 Run:
 
@@ -150,12 +153,15 @@ opa eval --format pretty \
   "data.ai.lifecycle.governance.deny"
 ```
 
-Expected result: OPA returns four policy violations:
+Expected result: OPA returns seven policy violations:
 
 - `DG-001`: S3 buckets must use encryption.
 - `TR-001`: Bedrock invocation logging must be enabled.
 - `RAI-001`: Bedrock Guardrails must be enabled.
 - `SEC-001`: IAM policies cannot use wildcard permissions.
+- `GOV-001`: AI impact assessment must be completed.
+- `GOV-002`: Critical AI risk must be accepted before deployment.
+- `GOV-003`: Production approval is required.
 
 ### 3. Evaluate the passing example
 
@@ -238,7 +244,7 @@ Expected result:
 ```text
 Policy-as-Code deployment gate: FAIL
 Compliance score: 0%
-Violations: 4
+Violations: 7
 Deployment blocked by OPA/Rego policy evaluation.
 ```
 
@@ -292,13 +298,42 @@ Reports are written to:
 - Pass/fail deployment simulation using `mock-infra/failed-example.json` and `mock-infra/passed-example.json`
 - Deployment approval gate using `data.ai.lifecycle.governance.allow`
 
+###  4 - Runtime Agent Governance Layer
+
+The dashboard also includes a mock runtime agent governance flow. This does not require a live AgentCore deployment, but it demonstrates how runtime authorization can complement the CI/CD deployment gate.
+
+Flow:
+
+```text
+User prompt
+  -> Ask AI Agent panel
+  -> Mock agent selects a tool
+  -> Runtime policy evaluator checks governance context
+  -> Decision is ALLOW or DENY
+  -> Dashboard shows the generated runtime request and reason
+```
+
+Runtime governance files:
+
+- `agentcore-policies/approved-agent-policy.cedar`
+- `agentcore-policies/blocked-agent-policy.cedar`
+- `agentcore-policies/runtime-agent-request.json`
+- `docs/runtime-agent-governance.md`
+
+The runtime demo models this enterprise pattern:
+
+- OPA/Rego answers: should this AI infrastructure be deployed?
+- AgentCore Policy/Cedar answers: should this AI agent be allowed to perform this action now?
+- Bedrock Guardrails contributes runtime safety signals such as prompt attack or sensitive data detection.
+
 ## Platform Modules
 
 | Module | Capability | Implementation |
 | --- | --- | --- |
 | Module 1 | Dashboard: compliance score, violations, deployment status, risk level | `web/src/App.tsx` |
-| Module 2 | Corporate AI Governance: Responsible AI, Data Privacy, Transparency, AI Security | `terraform/policy_framework.tf`, `web/src/data.ts` |
-| Module 3 | AI Lifecycle Governance: scoping, data collection, training, validation, deployment, monitoring, retirement | `terraform/pac_lifecycle.tf`, `web/src/data.ts` |
+| Module 2 | Corporate AI Governance: Responsible AI, Data Privacy, Transparency, AI Security | `policies/ai-governance-policy-model.json`, `terraform/policy_framework.tf` |
+| Module 3 | AI Lifecycle Governance: scoping, data collection, training, validation, deployment, monitoring, retirement | `policies/ai-governance-policy-model.json`, `terraform/pac_lifecycle.tf` |
 | Module 4 | Policy Engine: OPA, Rego, ISO 42001 controls | `policies/ai-lifecycle-governance.rego` |
 | Module 5 | CI/CD Governance Gate: GitHub Actions, policy evaluation, deployment approval | `.github/workflows/ai-governance-gate.yml` |
 | Module 6 | Compliance Reports: violations, remediation, audit evidence | `scripts/generate-compliance-report.mjs` |
+| Module 7 | Runtime Agent Governance: Ask AI Agent, Cedar-style authorization, Guardrails signal simulation | `agentcore-policies/`, `web/src/App.tsx` |

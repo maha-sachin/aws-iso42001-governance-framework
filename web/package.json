@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
+    "dashboard:build": "npm run build",
     "preview": "vite preview --host 0.0.0.0",
     "dashboard": "vite --host 0.0.0.0"
   },
