@@ -245,4 +245,734 @@ h1, h2, h3, p { margin-top: 0; } h1 { margin: 0 0 4px; font-size: 32px; } .topba
 .runtime-matrix-row strong { color: #f8fafc; }
 .runtime-matrix-row b { color: #38bdf8; }
 .runtime-matrix-row span { color: #94a3b8; font-weight: 700; }
-@media (max-width: 1180px) { .runtime-hero, .runtime-flow, .runtime-matrix-row { grid-template-columns: 1fr; } .runtime-flow span:not(:last-child)::after { display: none; } }
+.runtime-simulator { min-height: 0; margin-bottom: 24px; }
+.runtime-simulator .panel-title { align-items: flex-start; }
+.runtime-simulator .panel-title p { margin: 6px 0 0; color: #94a3b8; font-weight: 700; }
+.runtime-scenario-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.runtime-scenario-tabs button { min-height: 42px; padding: 0 14px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 8px; color: #cbd5e1; background: rgba(15, 28, 49, 0.7); font-weight: 900; cursor: pointer; }
+.runtime-scenario-tabs button.active { color: #38bdf8; border-color: rgba(56, 189, 248, 0.5); background: rgba(14, 165, 233, 0.12); }
+.runtime-simulator-grid { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 14px; }
+.runtime-agent-card { min-height: 132px; padding: 18px; border: 1px solid rgba(148, 163, 184, 0.13); border-radius: 10px; background: rgba(15, 28, 49, 0.62); }
+.runtime-agent-card span { display: block; margin-bottom: 10px; color: #94a3b8; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.runtime-agent-card strong { display: block; color: #f8fafc; line-height: 1.45; overflow-wrap: anywhere; }
+.runtime-agent-card p { margin: 10px 0 0; color: #cbd5e1; font-weight: 700; line-height: 1.5; }
+.runtime-agent-card.clean { border-color: rgba(34, 197, 94, 0.32); background: rgba(20, 83, 45, 0.14); }
+.runtime-agent-card.blocked { border-color: rgba(239, 68, 68, 0.32); background: rgba(127, 29, 29, 0.14); }
+.runtime-agent-card.clean strong { color: #bbf7d0; }
+.runtime-agent-card.blocked strong { color: #fecaca; }
+.ask-agent-panel { min-height: 0; margin-bottom: 24px; }
+.ask-agent-panel .panel-title { align-items: flex-start; }
+.ask-agent-panel .panel-title p { margin: 6px 0 0; color: #94a3b8; font-weight: 700; }
+.agent-chat-grid { display: grid; grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1fr) minmax(280px, 1fr); gap: 14px; align-items: start; }
+.agent-compose { display: grid; gap: 12px; }
+.agent-compose label { color: #94a3b8; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.agent-compose textarea { width: 100%; min-height: 154px; resize: vertical; padding: 14px; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 8px; outline: 0; color: #e2e8f0; background: #071120; font: inherit; font-weight: 700; line-height: 1.5; }
+.agent-compose textarea:focus { border-color: rgba(56, 189, 248, 0.55); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1); }
+.agent-examples { display: flex; flex-wrap: wrap; gap: 8px; }
+.agent-examples button { min-height: 34px; padding: 0 10px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 8px; color: #cbd5e1; background: rgba(15, 28, 49, 0.72); font-size: 12px; font-weight: 900; cursor: pointer; }
+.agent-examples button:hover { border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; }
+.agent-transcript { display: grid; gap: 12px; }
+.chat-bubble { padding: 14px; border: 1px solid rgba(148, 163, 184, 0.13); border-radius: 10px; background: rgba(15, 28, 49, 0.62); }
+.chat-bubble span { display: block; margin-bottom: 7px; color: #94a3b8; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.chat-bubble p { margin: 0; color: #e2e8f0; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.chat-bubble code { padding: 3px 6px; border-radius: 6px; color: #bfdbfe; background: rgba(37, 99, 235, 0.18); }
+.decision-bubble.allowed { border-color: rgba(34, 197, 94, 0.32); background: rgba(20, 83, 45, 0.14); }
+.decision-bubble.denied { border-color: rgba(239, 68, 68, 0.32); background: rgba(127, 29, 29, 0.14); }
+.decision-bubble.allowed p { color: #bbf7d0; }
+.decision-bubble.denied p { color: #fecaca; }
+.agent-runtime-context h3 { margin: 0 0 10px; color: #94a3b8; font-size: 13px; text-transform: uppercase; }
+.agent-runtime-context pre { max-height: 320px; overflow: auto; margin: 0; padding: 14px; border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 8px; color: #bfdbfe; background: #071120; font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+@media (max-width: 1180px) { .runtime-hero, .runtime-flow, .runtime-matrix-row, .runtime-simulator-grid, .agent-chat-grid { grid-template-columns: 1fr; } .runtime-flow span:not(:last-child)::after { display: none; } }
+
+/* Light executive dashboard theme */
+:root { color-scheme: light; }
+body {
+  background: #f5f7fb;
+  color: #172033;
+}
+.dashboard-shell {
+  background:
+    radial-gradient(circle at 85% 0%, rgba(37, 99, 235, 0.1), transparent 30%),
+    linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+.sidebar {
+  background: #ffffff;
+  border-right: 1px solid #d8e0ea;
+  box-shadow: 12px 0 30px rgba(15, 23, 42, 0.06);
+}
+.brand strong,
+h1,
+h2,
+h3,
+.stat-card strong,
+.score-card strong,
+.panel-title h2,
+.pipeline-step strong,
+.framework-policy-head h2,
+.stage-summary h2,
+.aws-resource-name strong {
+  color: #111827;
+}
+.brand span,
+.topbar p,
+.panel h2 span,
+.stat-card p,
+.stat-card span,
+.score-card p,
+.score-card span,
+.pipeline-step span,
+.framework-header p,
+.lifecycle-header p,
+.stage-summary p,
+.aws-resource-name span,
+.run-row small,
+.run-row p,
+.rule-detail p,
+.input-panel pre,
+.runtime-summary p,
+.runtime-matrix-row span,
+.ask-agent-panel .panel-title p,
+.runtime-simulator .panel-title p {
+  color: #53657d;
+}
+nav a,
+nav button {
+  color: #475569;
+}
+nav a span,
+nav button span {
+  color: #64748b;
+}
+nav a.active,
+nav button.active {
+  color: #ffffff;
+  background: linear-gradient(90deg, #1d4ed8, #0f766e);
+  box-shadow: 0 12px 24px rgba(29, 78, 216, 0.18);
+}
+nav button:hover {
+  color: #0f172a;
+  background: #edf5ff;
+}
+.env,
+.environment,
+.bell,
+.standard,
+.stat-card,
+.score-card,
+.panel,
+.framework-policy,
+.stage-card,
+.lifecycle-kpis article,
+.framework-kpis article,
+.report-status,
+.runtime-flow span,
+.pipeline-step,
+.resource-card,
+.action-button,
+.runtime-agent-card,
+.runtime-matrix-row,
+.chat-bubble,
+.agent-compose textarea,
+.agent-runtime-context pre,
+.rule-detail pre,
+.input-panel pre {
+  background: #ffffff;
+  border-color: #dce4ee;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+}
+.panel,
+.stat-card,
+.score-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+.main-panel {
+  background: transparent;
+}
+.standard {
+  color: #0f172a;
+}
+.standard b {
+  color: #047857;
+  background: #dff7ea;
+}
+.standard b.not-compliant {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+.blocked-banner {
+  background: linear-gradient(90deg, #fff1f2, #fff7ed);
+  border-color: #fecdd3;
+}
+.approved-banner {
+  background: linear-gradient(90deg, #ecfdf5, #eff6ff);
+  border-color: #bbf7d0;
+}
+.blocked-banner p,
+.rule-meta b,
+.table-row p,
+.table-row em,
+.legend strong,
+.framework-policy-body li,
+.policy-description-block,
+.enforcement-note,
+.finding-card strong,
+.report-violation strong,
+.resource-detail-card strong,
+.chat-bubble p,
+.runtime-agent-card strong {
+  color: #1f2937;
+}
+.table-head {
+  color: #64748b;
+  border-color: #dce4ee;
+}
+.table-row {
+  border-color: #e5edf6;
+}
+.row-button:hover,
+.selected-row {
+  background: #eff6ff;
+}
+.pill.low,
+.pass-tag {
+  color: #047857;
+  background: #dff7ea;
+}
+.pill.high {
+  color: #b45309;
+  background: #fef3c7;
+}
+.pill.critical,
+.fail-tag {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+.rule-detail pre,
+.input-panel pre,
+.mini-code-window pre,
+.agent-runtime-context pre {
+  color: #dbeafe;
+  background: #0f172a;
+  border-color: #1e293b;
+  box-shadow: none;
+}
+.mini-code-window,
+.mini-code-title {
+  background: #111827;
+}
+.donut span,
+.mini-ring span {
+  background: #ffffff;
+  color: #1d4ed8;
+}
+.trend-chart text,
+.legend p,
+.lifecycle-legend,
+.governed-by,
+.gate-title span,
+.framework-policy-head p,
+.framework-kpis p,
+.lifecycle-kpis p,
+.runtime-decision p {
+  color: #64748b;
+}
+.aws-infra-row,
+.report-control,
+.framework-policy {
+  border-color: #dce4ee;
+}
+.aws-infra-row.highlighted {
+  background: #fff7ed;
+}
+.policy-description-block,
+.enforcement-note,
+.lifecycle-legend,
+.stage-expanded {
+  background: #f8fafc;
+  border-color: #dce4ee;
+}
+.stage-tags span,
+.framework-tags span,
+.rule-meta b,
+.policy-id-badge {
+  background: #eef4fb;
+  color: #334155;
+}
+.runtime-decision.decision-deny,
+.runtime-agent-card.blocked,
+.decision-bubble.denied,
+.finding-card,
+.report-violation,
+.resource-detail-card {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+.runtime-decision.decision-allow,
+.runtime-agent-card.clean,
+.decision-bubble.allowed,
+.report-violation.clean,
+.resource-detail-card.clean {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+.agent-compose textarea {
+  color: #172033;
+  background: #ffffff;
+}
+.agent-examples button,
+.runtime-scenario-tabs button,
+.framework-filters button {
+  color: #475569;
+  background: #ffffff;
+  border-color: #dce4ee;
+}
+.agent-examples button:hover,
+.runtime-scenario-tabs button.active,
+.framework-filters button.active {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+/* Contrast and readability pass for the light dashboard */
+body {
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+}
+.main-panel {
+  padding: 24px 28px 42px;
+}
+.panel,
+.stat-card,
+.score-card,
+.runtime-decision,
+.environment,
+.standard,
+.bell {
+  background: #ffffff;
+  border: 1px solid #cfd9e6;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+.panel h2,
+.runtime-summary h2,
+.ask-agent-panel h2,
+.runtime-simulator h2,
+.rule-detail h2,
+.input-panel h2 {
+  color: #0f172a;
+  font-weight: 900;
+}
+.topbar p,
+.runtime-summary p,
+.ask-agent-panel .panel-title p,
+.runtime-simulator .panel-title p,
+.rule-detail p,
+.pipeline-step span,
+.runtime-matrix-row span,
+.stat-card span,
+.score-card span {
+  color: #334155;
+  font-weight: 750;
+}
+.runtime-flow span {
+  color: #174ea6;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  box-shadow: none;
+}
+.runtime-flow span:not(:last-child)::after {
+  color: #2563eb;
+}
+.runtime-decision.decision-deny {
+  background: #fff5f5;
+  border-color: #fca5a5;
+}
+.runtime-decision.decision-deny strong {
+  color: #dc2626;
+}
+.runtime-decision.decision-deny p {
+  color: #7f1d1d;
+}
+.runtime-decision.decision-allow {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.runtime-decision.decision-allow strong {
+  color: #047857;
+}
+.pass-tag {
+  color: #065f46;
+  background: #d1fae5;
+}
+.fail-tag {
+  color: #991b1b;
+  background: #fee2e2;
+}
+.agent-compose label,
+.chat-bubble span,
+.runtime-agent-card span,
+.agent-runtime-context h3,
+.runtime-decision span,
+.table-head,
+.framework-kpis span,
+.lifecycle-kpis span,
+.report-status span {
+  color: #64748b;
+  font-weight: 900;
+}
+.agent-compose textarea,
+.chat-bubble,
+.runtime-agent-card,
+.runtime-matrix-row,
+.pipeline-step {
+  border-color: #cfd9e6;
+  box-shadow: none;
+}
+.agent-compose textarea {
+  color: #0f172a;
+  font-weight: 750;
+}
+.chat-bubble p,
+.runtime-agent-card strong,
+.runtime-agent-card p {
+  color: #0f172a;
+}
+.chat-bubble code {
+  color: #1d4ed8;
+  background: #dbeafe;
+  font-weight: 900;
+}
+.decision-bubble.denied,
+.runtime-agent-card.blocked {
+  background: #fff1f2;
+  border-color: #fca5a5;
+}
+.decision-bubble.denied p,
+.runtime-agent-card.blocked strong,
+.runtime-agent-card.blocked p {
+  color: #991b1b;
+}
+.decision-bubble.allowed,
+.runtime-agent-card.clean {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.decision-bubble.allowed p,
+.runtime-agent-card.clean strong,
+.runtime-agent-card.clean p {
+  color: #065f46;
+}
+.agent-examples button,
+.runtime-scenario-tabs button {
+  color: #334155;
+  background: #f8fafc;
+  border-color: #cfd9e6;
+}
+.agent-examples button:hover,
+.runtime-scenario-tabs button:hover {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+.runtime-scenario-tabs button.active {
+  color: #ffffff;
+  background: #2563eb;
+  border-color: #2563eb;
+}
+.rule-detail pre,
+.input-panel pre,
+.agent-runtime-context pre,
+.mini-code-window pre {
+  color: #e5edff;
+  background: #101827;
+  border-color: #263449;
+}
+.rule-detail pre::selection,
+.input-panel pre::selection,
+.agent-runtime-context pre::selection {
+  background: #2563eb;
+}
+.sidebar {
+  color: #0f172a;
+}
+.brand strong {
+  color: #0f172a;
+}
+.brand span {
+  color: #475569;
+}
+nav button {
+  color: #334155;
+}
+.env strong {
+  color: #0f172a;
+}
+.env span {
+  color: #64748b;
+}
+
+/* Refined dark theme override */
+:root { color-scheme: dark; }
+body {
+  background: #07111f;
+  color: #e6edf7;
+}
+.dashboard-shell {
+  background:
+    radial-gradient(circle at 82% 0%, rgba(37, 99, 235, 0.2), transparent 34%),
+    radial-gradient(circle at 18% 8%, rgba(20, 184, 166, 0.1), transparent 26%),
+    #07111f;
+}
+.sidebar {
+  color: #dbe7f6;
+  background: linear-gradient(180deg, #0c1728 0%, #081220 100%);
+  border-right: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 12px 0 34px rgba(0, 0, 0, 0.18);
+}
+.brand strong,
+.env strong,
+.panel h2,
+.runtime-summary h2,
+.ask-agent-panel h2,
+.runtime-simulator h2,
+.rule-detail h2,
+.input-panel h2,
+h1,
+h2,
+h3,
+.stat-card strong,
+.score-card strong,
+.pipeline-step strong,
+.framework-policy-head h2,
+.stage-summary h2,
+.aws-resource-name strong,
+.chat-bubble p,
+.runtime-agent-card strong,
+.runtime-agent-card p,
+.table-row p,
+.table-row em {
+  color: #f8fbff;
+}
+.brand span,
+.env span,
+.topbar p,
+.runtime-summary p,
+.ask-agent-panel .panel-title p,
+.runtime-simulator .panel-title p,
+.rule-detail p,
+.pipeline-step span,
+.runtime-matrix-row span,
+.stat-card span,
+.score-card span,
+.stage-summary p,
+.aws-resource-name span,
+.framework-policy-head p,
+.runtime-decision p,
+.agent-compose label,
+.chat-bubble span,
+.runtime-agent-card span,
+.agent-runtime-context h3,
+.runtime-decision span,
+.table-head {
+  color: #a9b8cd;
+}
+nav button {
+  color: #b7c4d8;
+}
+nav button span {
+  color: #7f90a8;
+}
+nav button:hover {
+  color: #ffffff;
+  background: rgba(59, 130, 246, 0.14);
+}
+nav a.active,
+nav button.active {
+  color: #ffffff;
+  background: linear-gradient(90deg, #2563eb, #0f766e);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+}
+.panel,
+.stat-card,
+.score-card,
+.runtime-decision,
+.environment,
+.standard,
+.bell,
+.pipeline-step,
+.runtime-agent-card,
+.runtime-matrix-row,
+.chat-bubble,
+.agent-compose textarea,
+.resource-card,
+.action-button,
+.framework-policy,
+.stage-card,
+.lifecycle-kpis article,
+.framework-kpis article,
+.report-status {
+  color: #e6edf7;
+  background: linear-gradient(180deg, rgba(15, 27, 45, 0.96) 0%, rgba(11, 21, 36, 0.96) 100%);
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+}
+.environment select {
+  color: #f8fbff;
+}
+.standard {
+  color: #dbe7f6;
+}
+.standard b {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.16);
+}
+.standard b.not-compliant {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.16);
+}
+.blocked-banner {
+  background: linear-gradient(90deg, rgba(127, 29, 29, 0.46), rgba(88, 28, 35, 0.34));
+  border-color: rgba(248, 113, 113, 0.45);
+}
+.approved-banner {
+  background: linear-gradient(90deg, rgba(20, 83, 45, 0.42), rgba(15, 76, 70, 0.28));
+  border-color: rgba(74, 222, 128, 0.36);
+}
+.blocked-banner p {
+  color: #fecdd3;
+}
+.approved-banner p {
+  color: #bbf7d0;
+}
+.runtime-flow span {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(96, 165, 250, 0.34);
+}
+.runtime-flow span:not(:last-child)::after {
+  color: #60a5fa;
+}
+.runtime-decision.decision-deny,
+.decision-bubble.denied,
+.runtime-agent-card.blocked,
+.finding-card,
+.report-violation,
+.resource-detail-card {
+  background: rgba(127, 29, 29, 0.2);
+  border-color: rgba(248, 113, 113, 0.34);
+}
+.runtime-decision.decision-deny strong,
+.decision-bubble.denied p,
+.runtime-agent-card.blocked strong,
+.runtime-agent-card.blocked p {
+  color: #fecaca;
+}
+.runtime-decision.decision-deny p {
+  color: #fca5a5;
+}
+.runtime-decision.decision-allow,
+.decision-bubble.allowed,
+.runtime-agent-card.clean,
+.report-violation.clean,
+.resource-detail-card.clean {
+  background: rgba(20, 83, 45, 0.22);
+  border-color: rgba(74, 222, 128, 0.34);
+}
+.runtime-decision.decision-allow strong,
+.decision-bubble.allowed p,
+.runtime-agent-card.clean strong,
+.runtime-agent-card.clean p {
+  color: #bbf7d0;
+}
+.pass-tag,
+.pill.low {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.16);
+}
+.fail-tag,
+.pill.critical {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.18);
+}
+.pill.high {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.18);
+}
+.agent-compose textarea {
+  color: #f8fbff;
+  background: #081322;
+  border-color: rgba(148, 163, 184, 0.24);
+}
+.agent-compose textarea:focus {
+  border-color: rgba(96, 165, 250, 0.72);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+.agent-examples button,
+.runtime-scenario-tabs button,
+.framework-filters button {
+  color: #c7d3e5;
+  background: rgba(15, 28, 49, 0.82);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+.agent-examples button:hover,
+.runtime-scenario-tabs button:hover,
+.framework-filters button:hover {
+  color: #ffffff;
+  background: rgba(37, 99, 235, 0.22);
+  border-color: rgba(96, 165, 250, 0.48);
+}
+.runtime-scenario-tabs button.active,
+.framework-filters button.active {
+  color: #ffffff;
+  background: linear-gradient(90deg, #2563eb, #0f766e);
+  border-color: rgba(96, 165, 250, 0.55);
+}
+.chat-bubble code {
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.26);
+}
+.rule-detail pre,
+.input-panel pre,
+.agent-runtime-context pre,
+.mini-code-window pre {
+  color: #dbeafe;
+  background: #050b16;
+  border-color: rgba(148, 163, 184, 0.18);
+}
+.rule-meta b,
+.stage-tags span,
+.framework-tags span,
+.policy-id-badge {
+  color: #cbd5e1;
+  background: rgba(15, 28, 49, 0.86);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+.row-button:hover,
+.selected-row {
+  background: rgba(37, 99, 235, 0.14);
+}
+.table-head,
+.table-row {
+  border-color: rgba(148, 163, 184, 0.14);
+}
+.policy-description-block,
+.enforcement-note,
+.lifecycle-legend,
+.stage-expanded {
+  color: #cbd5e1;
+  background: rgba(15, 28, 49, 0.64);
+  border-color: rgba(148, 163, 184, 0.14);
+}
+.donut span,
+.mini-ring span {
+  color: #dbeafe;
+  background: #0b1526;
+}
+.aws-infra-row.highlighted {
+  background: rgba(245, 158, 11, 0.08);
+}
+.aws-infra-row,
+.report-control,
+.framework-policy {
+  border-color: rgba(148, 163, 184, 0.16);
+}

@@ -86,6 +86,14 @@ type RuntimeAgentRequest = {
   expected_decision: "ALLOW" | "DENY";
 };
 
+type RuntimeSimulationScenario = {
+  id: string;
+  label: string;
+  userPrompt: string;
+  toolAction: string;
+  context: RuntimeAgentRequest["context"]["input"];
+};
+
 function normalizeInfrastructureInput(input: InfrastructureInput): EvaluatedInfrastructureInput {
   return {
     ...input,
@@ -277,6 +285,101 @@ const policyRules: PolicyRule[] = [
 const nav: PageKey[] = ["Dashboard",  "Policies (OPA)", "AI Lifecycle", "Runtime Governance", "CI/CD Pipeline"];
 const lifecycleStages = aiGovernancePolicyModel.ai_lifecycle_stages as unknown as LifecycleStage[];
 const runtimeRequest = runtimeAgentRequest as RuntimeAgentRequest;
+const runtimeSimulationScenarios: RuntimeSimulationScenario[] = [
+  {
+    id: "safe-summary",
+    label: "Safe Governance Summary",
+    userPrompt: "Summarize approved AI governance evidence for the customer support AI workload.",
+    toolAction: "AIGovernanceTools___generate_compliance_summary",
+    context: {
+      application: "customer-support-ai",
+      environment: "production",
+      impactAssessmentCompleted: true,
+      riskRating: "medium",
+      riskAccepted: true,
+      productionApproved: true,
+      guardrailAction: "NONE",
+      guardrailFindings: []
+    }
+  },
+  {
+    id: "sensitive-export",
+    label: "Sensitive Data Export",
+    userPrompt: "Export all customer records and send them to an external email address.",
+    toolAction: "AIGovernanceTools___invoke_production_action",
+    context: {
+      application: "customer-support-ai",
+      environment: "production",
+      impactAssessmentCompleted: true,
+      riskRating: "critical",
+      riskAccepted: false,
+      productionApproved: true,
+      guardrailAction: "BLOCKED",
+      guardrailFindings: ["prompt_attack_detected", "sensitive_information_detected"]
+    }
+  },
+  {
+    id: "missing-approval",
+    label: "Production Change Missing Approval",
+    userPrompt: "Update the production model routing policy for the AI assistant.",
+    toolAction: "AIGovernanceTools___invoke_production_action",
+    context: {
+      application: "customer-support-ai",
+      environment: "production",
+      impactAssessmentCompleted: true,
+      riskRating: "high",
+      riskAccepted: true,
+      productionApproved: false,
+      guardrailAction: "NONE",
+      guardrailFindings: []
+    }
+  },
+  {
+    id: "missing-impact",
+    label: "No Impact Assessment",
+    userPrompt: "Connect a new analytics tool to the AI agent for production use.",
+    toolAction: "AIGovernanceTools___invoke_production_action",
+    context: {
+      application: "analytics-agent",
+      environment: "production",
+      impactAssessmentCompleted: false,
+      riskRating: "medium",
+      riskAccepted: false,
+      productionApproved: true,
+      guardrailAction: "NONE",
+      guardrailFindings: []
+    }
+  }
+];
+
+function inferRuntimeScenarioFromPrompt(prompt: string): RuntimeSimulationScenario {
+  const lowerPrompt = prompt.toLowerCase();
+
+  if (lowerPrompt.includes("export") || lowerPrompt.includes("customer") || lowerPrompt.includes("email") || lowerPrompt.includes("pii")) {
+    return runtimeSimulationScenarios.find((scenario) => scenario.id === "sensitive-export") ?? runtimeSimulationScenarios[1];
+  }
+
+  if (lowerPrompt.includes("production") || lowerPrompt.includes("routing") || lowerPrompt.includes("update") || lowerPrompt.includes("deploy")) {
+    return runtimeSimulationScenarios.find((scenario) => scenario.id === "missing-approval") ?? runtimeSimulationScenarios[2];
+  }
+
+  if (lowerPrompt.includes("connect") || lowerPrompt.includes("new tool") || lowerPrompt.includes("analytics")) {
+    return runtimeSimulationScenarios.find((scenario) => scenario.id === "missing-impact") ?? runtimeSimulationScenarios[3];
+  }
+
+  return runtimeSimulationScenarios[0];
+}
+
+function buildRuntimeRequest(scenario: RuntimeSimulationScenario): RuntimeAgentRequest {
+  return {
+    ...runtimeRequest,
+    action: scenario.toolAction,
+    context: {
+      input: scenario.context
+    },
+    expected_decision: evaluateRuntimeAgentRequest({ ...runtimeRequest, action: scenario.toolAction, context: { input: scenario.context } }).decision as "ALLOW" | "DENY"
+  };
+}
 
 function evaluateRuntimeAgentRequest(request: RuntimeAgentRequest) {
   const input = request.context.input;
@@ -408,6 +511,8 @@ function AppPage({
   const [expandedLifecycleStage, setExpandedLifecycleStage] = useState(0);
   const [policyFilter, setPolicyFilter] = useState<"all" | "corporate" | "operational">("all");
   const [expandedPolicyId, setExpandedPolicyId] = useState("Responsible AI Policy");
+  const [selectedRuntimeScenarioId, setSelectedRuntimeScenarioId] = useState(runtimeSimulationScenarios[0].id);
+  const [agentPrompt, setAgentPrompt] = useState("Summarize approved AI governance evidence for the customer support AI workload.");
 
   if (page === "Policy Framework") {
     const corporatePolicies = Object.entries(aiGovernancePolicyModel.corporate_ai_policies).map(([key, policy]) => ({
@@ -583,7 +688,12 @@ function AppPage({
   }
 
   if (page === "Runtime Governance") {
-    const runtimeDecision = evaluateRuntimeAgentRequest(runtimeRequest);
+    const selectedRuntimeScenario = runtimeSimulationScenarios.find((item) => item.id === selectedRuntimeScenarioId) ?? runtimeSimulationScenarios[0];
+    const inferredRuntimeScenario = inferRuntimeScenarioFromPrompt(agentPrompt);
+    const chatRuntimeRequest = buildRuntimeRequest({ ...inferredRuntimeScenario, userPrompt: agentPrompt });
+    const chatRuntimeDecision = evaluateRuntimeAgentRequest(chatRuntimeRequest);
+    const simulatedRuntimeRequest = buildRuntimeRequest(selectedRuntimeScenario);
+    const runtimeDecision = evaluateRuntimeAgentRequest(simulatedRuntimeRequest);
     const runtimeLayers = [
       ["AgentCore Gateway", "Runtime boundary where agent tool traffic is intercepted before a downstream tool, model, or API is called."],
       ["AgentCore Policy", "Cedar policies decide whether the agent can call a tool for this principal, action, resource, and context."],
@@ -616,6 +726,77 @@ function AppPage({
           </article>
         </section>
 
+        <section className="panel ask-agent-panel">
+          <div className="panel-title">
+            <div>
+              <h2>Ask AI Agent</h2>
+              <p>Type a request. The mock agent chooses a tool, then the runtime policy evaluator allows or denies it.</p>
+            </div>
+            <span className={chatRuntimeDecision.decision === "ALLOW" ? "pass-tag" : "fail-tag"}>{chatRuntimeDecision.decision}</span>
+          </div>
+
+          <div className="agent-chat-grid">
+            <div className="agent-compose">
+              <label htmlFor="agent-prompt">Message</label>
+              <textarea id="agent-prompt" value={agentPrompt} onChange={(event) => setAgentPrompt(event.target.value)} />
+              <div className="agent-examples">
+                {runtimeSimulationScenarios.map((item) => (
+                  <button key={item.id} onClick={() => {
+                    setAgentPrompt(item.userPrompt);
+                    setSelectedRuntimeScenarioId(item.id);
+                  }}>{item.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="agent-transcript">
+              <div className="chat-bubble user-bubble"><span>User</span><p>{agentPrompt}</p></div>
+              <div className="chat-bubble agent-bubble"><span>Mock Agent</span><p>I want to call <code>{inferredRuntimeScenario.toolAction}</code>.</p></div>
+              <div className={`chat-bubble decision-bubble ${chatRuntimeDecision.decision === "ALLOW" ? "allowed" : "denied"}`}>
+                <span>Runtime Policy Evaluator</span>
+                <p>{chatRuntimeDecision.decision === "ALLOW" ? "Allowed. Governance evidence is present and Guardrails did not block this request." : `Denied. ${chatRuntimeDecision.blockers.join(" ")}`}</p>
+              </div>
+            </div>
+
+            <div className="agent-runtime-context">
+              <h3>Generated Runtime Request</h3>
+              <pre>{JSON.stringify(chatRuntimeRequest, null, 2)}</pre>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel runtime-simulator">
+          <div className="panel-title">
+            <div>
+              <h2>Runtime Agent Simulator</h2>
+              <p>Choose a user prompt and watch the simulated AgentCore/Cedar gate allow or deny the tool call.</p>
+            </div>
+            <span className={runtimeDecision.decision === "ALLOW" ? "pass-tag" : "fail-tag"}>{runtimeDecision.decision}</span>
+          </div>
+
+          <div className="runtime-scenario-tabs">
+            {runtimeSimulationScenarios.map((item) => (
+              <button className={item.id === selectedRuntimeScenarioId ? "active" : ""} key={item.id} onClick={() => setSelectedRuntimeScenarioId(item.id)}>{item.label}</button>
+            ))}
+          </div>
+
+          <div className="runtime-simulator-grid">
+            <article className="runtime-agent-card">
+              <span>User Prompt</span>
+              <strong>{selectedRuntimeScenario.userPrompt}</strong>
+            </article>
+            <article className="runtime-agent-card">
+              <span>Agent Tool Call</span>
+              <strong>{selectedRuntimeScenario.toolAction}</strong>
+            </article>
+            <article className={`runtime-agent-card ${runtimeDecision.decision === "ALLOW" ? "clean" : "blocked"}`}>
+              <span>Policy Decision</span>
+              <strong>{runtimeDecision.decision === "ALLOW" ? "Allowed by Cedar policy" : "Blocked at gateway"}</strong>
+              <p>{runtimeDecision.blockers.length === 0 ? "Governance evidence is present and Guardrails returned no blocking signal." : runtimeDecision.blockers.join(" ")}</p>
+            </article>
+          </div>
+        </section>
+
         <section className="content-grid middle-content">
           <article className="panel rule-detail">
             <h2>Approved Tool Policy <span>agentcore-policies/approved-agent-policy.cedar</span></h2>
@@ -629,7 +810,7 @@ function AppPage({
           </article>
           <article className="panel input-panel">
             <h2>Runtime Request Context</h2>
-            <pre>{JSON.stringify(runtimeRequest, null, 2)}</pre>
+            <pre>{JSON.stringify(simulatedRuntimeRequest, null, 2)}</pre>
           </article>
         </section>
 
