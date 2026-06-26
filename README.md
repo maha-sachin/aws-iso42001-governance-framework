@@ -23,7 +23,7 @@ This Terraform codebase enforces AI governance, safety, and compliance controls 
 
 ## 📁 Project Structure
 
-```
+````
 aws-iso42001-governance-framework/
 ├── terraform/                     # Terraform backend and governance controls
 │   ├── main.tf                    # Root orchestration
@@ -66,7 +66,7 @@ cd terraform
 terraform init
 terraform plan -out=governance.tfplan
 terraform apply governance.tfplan
-```
+````
 
 ---
 
@@ -99,7 +99,6 @@ Built to demonstrate practical **Policy-as-Code** expertise in AI governance fra
 # aws-iso42001-governance-framework
 
 A production-grade Infrastructure-as-Code framework implementing ISO/IEC 42001:2023 — the international standard for AI Management Systems — on AWS.
-
 
 ## AI Policy-as-Code Lifecycle Implementation
 
@@ -197,9 +196,6 @@ false
 
 Use `deny` when you want the detailed compliance findings. Use `allow` when you only need the pass/fail deployment gate decision.
 
-
-
-
 ## CI/CD Policy-as-Code Deployment Check
 
 This project includes a GitHub Actions workflow that demonstrates Policy-as-Code as a deployment approval gate.
@@ -265,7 +261,7 @@ These reports contain the evaluated input, OPA policy path, pass/fail decision, 
 
 This project is organized as the enterprise AI governance platform hiring managers expect for Cloud Governance, DevSecOps, AI Governance, MLOps, and AWS AI/Bedrock roles.
 
-###  1 - Visualization Layer
+### 1 - Visualization Layer
 
 - React Dashboard: `web/`
 - Policy Pages: dashboard corporate governance cards and policy docs
@@ -278,7 +274,7 @@ npm install
 npm run dashboard
 ```
 
-###  2 - Enforcement and Reporting Layer
+### 2 - Enforcement and Reporting Layer
 
 - Real OPA/Rego evaluation: `policies/ai-lifecycle-governance.rego`
 - Compliance report generation: `scripts/generate-compliance-report.mjs`
@@ -294,13 +290,13 @@ Reports are written to:
 - `reports/compliance-report.md`
 - `reports/compliance-report.json`
 
-###  3 - CI/CD Governance Gate
+### 3 - CI/CD Governance Gate
 
 - GitHub Actions pipeline: `.github/workflows/ai-governance-gate.yml`
 - Pass/fail deployment simulation using `mock-infra/failed-example.json` and `mock-infra/passed-example.json`
 - Deployment approval gate using `data.ai.lifecycle.governance.allow`
 
-###  4 - Runtime Agent Governance Layer
+### 4 - Runtime Agent Governance Layer
 
 The dashboard also includes a mock runtime agent governance flow. This does not require a live AgentCore deployment, but it demonstrates how runtime authorization can complement the CI/CD deployment gate.
 
@@ -328,7 +324,7 @@ The runtime demo models this enterprise pattern:
 - AgentCore Policy/Cedar answers: should this AI agent be allowed to perform this action now?
 - Bedrock Guardrails contributes runtime safety signals such as prompt attack or sensitive data detection.
 
-###  5 - OPA Gatekeeper Kubernetes Admission Control
+### 5 - OPA Gatekeeper Kubernetes Admission Control
 
 This project also includes an OPA Gatekeeper demo for Kubernetes AI workloads.
 
@@ -354,13 +350,13 @@ Gatekeeper files:
 
 ## Platform Modules
 
-| Module | Capability | Implementation |
-| --- | --- | --- |
-| Module 1 | Dashboard: compliance score, violations, deployment status, risk level | `web/src/App.tsx` |
-| Module 2 | Corporate AI Governance: Responsible AI, Data Privacy, Transparency, AI Security | `policies/ai-governance-policy-model.json`, `terraform/policy_framework.tf` |
-| Module 3 | AI Lifecycle Governance: scoping, data collection, training, validation, deployment, monitoring, retirement | `policies/ai-governance-policy-model.json`, `terraform/pac_lifecycle.tf` |
-| Module 4 | Policy Engine: OPA, Rego, ISO 42001 controls | `policies/ai-lifecycle-governance.rego` |
-| Module 5 | CI/CD Governance Gate: GitHub Actions, policy evaluation, deployment approval | `.github/workflows/ai-governance-gate.yml` |
-| Module 6 | Compliance Reports: violations, remediation, audit evidence | `scripts/generate-compliance-report.mjs` |
-| Module 7 | Runtime Agent Governance: Ask AI Agent, Cedar-style authorization, Guardrails signal simulation | `agentcore-policies/`, `web/src/App.tsx` |
-| Module 8 | Kubernetes Admission Control: OPA Gatekeeper constraints for AI workloads | `kubernetes/gatekeeper/` |
+| Module   | Capability                                                                                                  | Implementation                                                              |
+| -------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Module 1 | Dashboard: compliance score, violations, deployment status, risk level                                      | `web/src/App.tsx`                                                           |
+| Module 2 | Corporate AI Governance: Responsible AI, Data Privacy, Transparency, AI Security                            | `policies/ai-governance-policy-model.json`, `terraform/policy_framework.tf` |
+| Module 3 | AI Lifecycle Governance: scoping, data collection, training, validation, deployment, monitoring, retirement | `policies/ai-governance-policy-model.json`, `terraform/pac_lifecycle.tf`    |
+| Module 4 | Policy Engine: OPA, Rego, ISO 42001 controls                                                                | `policies/ai-lifecycle-governance.rego`                                     |
+| Module 5 | CI/CD Governance Gate: GitHub Actions, policy evaluation, deployment approval                               | `.github/workflows/ai-governance-gate.yml`                                  |
+| Module 6 | Compliance Reports: violations, remediation, audit evidence                                                 | `scripts/generate-compliance-report.mjs`                                    |
+| Module 7 | Runtime Agent Governance: Ask AI Agent, Cedar-style authorization, Guardrails signal simulation             | `agentcore-policies/`, `web/src/App.tsx`                                    |
+| Module 8 | Kubernetes Admission Control: OPA Gatekeeper constraints for AI workloads                                   | `kubernetes/gatekeeper/`                                                    |

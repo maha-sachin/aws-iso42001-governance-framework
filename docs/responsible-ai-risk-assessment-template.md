@@ -14,14 +14,14 @@ This template supports the governance workflow for responsible AI review, impact
 
 ## 2. Risk Assessment
 
-| Dimension | Assessment Question | Risk Indicator | Required Controls | Evidence / Notes |
-|---|---|---|---|---|
-| Fairness | Could this AI produce unequal or biased outcomes? | Medium / High if it affects people, access, or opportunities | Bias testing, outcome monitoring, human review | |
-| Accountability | Is there a named business owner and clear ownership of the AI system? | High if ownership is unclear | Named owners, RACI, committee oversight | |
-| Transparency | Can we explain and trace decisions after the fact? | High if decisions affect rights, finances, or legal outcomes | Logging, documentation, traceability | |
-| Safety | Could errors cause harm or irreversible impact? | High if autonomous or safety-critical | Human-in-the-loop, kill switch, limits on automation | |
-| Data Use | Does the AI touch sensitive or regulated data? | High if personal or regulated data is involved | Data controls, access limits, retention rules | |
-| Regulatory Exposure | Would a regulator reasonably scrutinize this use case? | High if the domain is regulated | Legal review, evidence retention | |
+| Dimension           | Assessment Question                                                   | Risk Indicator                                               | Required Controls                                    | Evidence / Notes |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- | ---------------- |
+| Fairness            | Could this AI produce unequal or biased outcomes?                     | Medium / High if it affects people, access, or opportunities | Bias testing, outcome monitoring, human review       |                  |
+| Accountability      | Is there a named business owner and clear ownership of the AI system? | High if ownership is unclear                                 | Named owners, RACI, committee oversight              |                  |
+| Transparency        | Can we explain and trace decisions after the fact?                    | High if decisions affect rights, finances, or legal outcomes | Logging, documentation, traceability                 |                  |
+| Safety              | Could errors cause harm or irreversible impact?                       | High if autonomous or safety-critical                        | Human-in-the-loop, kill switch, limits on automation |                  |
+| Data Use            | Does the AI touch sensitive or regulated data?                        | High if personal or regulated data is involved               | Data controls, access limits, retention rules        |                  |
+| Regulatory Exposure | Would a regulator reasonably scrutinize this use case?                | High if the domain is regulated                              | Legal review, evidence retention                     |                  |
 
 ## 3. Overall Assessment
 
