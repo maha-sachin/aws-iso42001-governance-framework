@@ -46,8 +46,7 @@ aws-iso42001-governance-framework/
 ├── mock-infra/                    # Pass/fail input examples for OPA
 ├── scripts/                       # Compliance report generation
 ├── web/                           # React dashboard
-└── docs/                          # Governance documentation
-```
+└── docs/                          # Governance documentation│   └── responsible-ai-risk-assessment-template.md```
 
 ---
 
@@ -122,6 +121,7 @@ Key files:
 - `mock-infra/failed-example.json` and `mock-infra/passed-example.json` provide demo input postures.
 - `docs/ai-policy-as-code-lifecycle.md` documents the governance lifecycle.
 - `docs/runtime-agent-governance.md` documents the runtime agent governance extension.
+- `docs/responsible-ai-risk-assessment-template.md` provides a reusable responsible AI risk assessment template.
 
 Run:
 

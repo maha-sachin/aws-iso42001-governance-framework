@@ -58,3 +58,7 @@ AWS lifecycle coverage:
 These operational policies are implemented in `terraform/policy_framework.tf` as `local.operational_ai_policies` and materialized as `null_resource.operational_ai_policy` resources. The policies are exposed through the `operational_ai_policies` Terraform output.
 
 The Policy-as-Code enforcement layer in `terraform/pac_lifecycle.tf` maps these operational controls to concrete deployment gates and compliance findings.
+
+## Responsible AI Risk Assessment Template
+
+Use the template in `docs/responsible-ai-risk-assessment-template.md` when you need a structured assessment for a new AI system, model, workflow, or deployment. It complements the operational policy controls by capturing fairness, accountability, transparency, safety, data-use, and regulatory-exposure considerations in a reviewable format.
