@@ -129,6 +129,23 @@ jobs:
       - name: Gate Decision - Enforce Policy-as-Code Deployment Check
         run: node scripts/pac-deployment-check.mjs "${{ steps.scenario.outputs.input }}"
 
+      - name: OPA Gatekeeper Demo - Passing AI Kubernetes Workload
+        run: npm run gatekeeper:check
+
+      - name: OPA Gatekeeper Demo - Failing AI Kubernetes Workload Must Be Blocked
+        run: |
+          set +e
+          npm run gatekeeper:check:fail
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 0 ]; then
+            echo "Expected failing Kubernetes AI workload to be blocked, but it passed."
+            exit 1
+          fi
+
+          echo "Failing Kubernetes AI workload was correctly blocked by OPA Gatekeeper demo policy."
+
       - name: Upload compliance evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,0 +1,22 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sblockprivilegedai
+  annotations:
+    description: Blocks privileged containers for AI workloads.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sBlockPrivilegedAI
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sblockprivilegedai
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          container.securityContext.privileged == true
+          msg := sprintf("Privileged container is not allowed for AI workload: %s", [container.name])
+        }
+

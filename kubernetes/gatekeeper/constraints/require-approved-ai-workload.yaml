@@ -1,0 +1,16 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sApprovedAIWorkload
+metadata:
+  name: require-approved-ai-workload
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    labelSelector:
+      matchLabels:
+        workload-type: ai
+  parameters:
+    annotation: ai.governance/approved
+    approvedValue: "true"
+

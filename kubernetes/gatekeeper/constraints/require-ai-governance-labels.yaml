@@ -1,0 +1,18 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredAILabels
+metadata:
+  name: require-ai-governance-labels
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    labelSelector:
+      matchLabels:
+        workload-type: ai
+  parameters:
+    labels:
+      - ai.governance/policy-id
+      - ai.governance/risk-rating
+      - ai.governance/owner
+

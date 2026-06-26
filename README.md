@@ -42,6 +42,7 @@ aws-iso42001-governance-framework/
 │       └── compliance-controls/   # ISO 42001 §9.1 — Audit & Evidence
 ├── policies/                      # OPA/Rego and AWS policy documents
 ├── agentcore-policies/            # AgentCore Policy/Cedar runtime governance examples
+├── kubernetes/gatekeeper/          # OPA Gatekeeper Kubernetes admission-control demo
 ├── mock-infra/                    # Pass/fail input examples for OPA
 ├── scripts/                       # Compliance report generation
 ├── web/                           # React dashboard
@@ -117,6 +118,7 @@ Key files:
 - `terraform/pac_lifecycle.tf` implements lifecycle stage gates and Terraform-native PaC evaluation.
 - `policies/ai-lifecycle-governance.rego` contains the equivalent OPA/Rego controls.
 - `agentcore-policies/*.cedar` contains runtime agent authorization examples modeled after Amazon Bedrock AgentCore Policy.
+- `kubernetes/gatekeeper/` contains Kubernetes OPA Gatekeeper templates, constraints, and sample AI workloads.
 - `mock-infra/failed-example.json` and `mock-infra/passed-example.json` provide demo input postures.
 - `docs/ai-policy-as-code-lifecycle.md` documents the governance lifecycle.
 - `docs/runtime-agent-governance.md` documents the runtime agent governance extension.
@@ -326,6 +328,30 @@ The runtime demo models this enterprise pattern:
 - AgentCore Policy/Cedar answers: should this AI agent be allowed to perform this action now?
 - Bedrock Guardrails contributes runtime safety signals such as prompt attack or sensitive data detection.
 
+###  5 - OPA Gatekeeper Kubernetes Admission Control
+
+This project also includes an OPA Gatekeeper demo for Kubernetes AI workloads.
+
+It enforces:
+
+- Required AI governance labels
+- No privileged containers for AI workloads
+- Required approval annotation before AI workload deployment
+
+Local demo commands:
+
+```bash
+npm run gatekeeper:check
+npm run gatekeeper:check:fail
+```
+
+Gatekeeper files:
+
+- `kubernetes/gatekeeper/constraint-templates/`
+- `kubernetes/gatekeeper/constraints/`
+- `kubernetes/gatekeeper/examples/`
+- `docs/opa-gatekeeper-ai-workload-demo.md`
+
 ## Platform Modules
 
 | Module | Capability | Implementation |
@@ -337,3 +363,4 @@ The runtime demo models this enterprise pattern:
 | Module 5 | CI/CD Governance Gate: GitHub Actions, policy evaluation, deployment approval | `.github/workflows/ai-governance-gate.yml` |
 | Module 6 | Compliance Reports: violations, remediation, audit evidence | `scripts/generate-compliance-report.mjs` |
 | Module 7 | Runtime Agent Governance: Ask AI Agent, Cedar-style authorization, Guardrails signal simulation | `agentcore-policies/`, `web/src/App.tsx` |
+| Module 8 | Kubernetes Admission Control: OPA Gatekeeper constraints for AI workloads | `kubernetes/gatekeeper/` |

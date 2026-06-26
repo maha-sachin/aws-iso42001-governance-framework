@@ -1,0 +1,32 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sapprovedaiworkload
+  annotations:
+    description: Requires approved AI governance annotation before workload admission.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sApprovedAIWorkload
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            annotation:
+              type: string
+            approvedValue:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sapprovedaiworkload
+
+        violation[{"msg": msg}] {
+          annotation := input.parameters.annotation
+          approved_value := input.parameters.approvedValue
+          actual := object.get(input.review.object.metadata.annotations, annotation, "")
+          actual != approved_value
+          msg := sprintf("AI workload annotation %s must be %s before deployment", [annotation, approved_value])
+        }
+
