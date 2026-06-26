@@ -76,58 +76,93 @@ jobs:
       - name: A.6.2 Data Governance Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "DG-001"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"DG-001"' >/dev/null; then
+            echo "DG-001 violation is present."
+            exit 1
+          else
+            echo "No DG-001 violation found."
+          fi
 
       - name: A.7.2 Transparency Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "TR-001"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"TR-001"' >/dev/null; then
+            echo "TR-001 violation is present."
+            exit 1
+          else
+            echo "No TR-001 violation found."
+          fi
 
       - name: A.8.4 Responsible AI Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "RAI-001"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"RAI-001"' >/dev/null; then
+            echo "RAI-001 violation is present."
+            exit 1
+          else
+            echo "No RAI-001 violation found."
+          fi
 
       - name: Security Control - IAM Least Privilege Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "SEC-001"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"SEC-001"' >/dev/null; then
+            echo "SEC-001 violation is present."
+            exit 1
+          else
+            echo "No SEC-001 violation found."
+          fi
 
       - name: A.5.2 Impact Assessment Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "GOV-001"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"GOV-001"' >/dev/null; then
+            echo "GOV-001 violation is present."
+            exit 1
+          else
+            echo "No GOV-001 violation found."
+          fi
 
       - name: A.5.3 Risk Rating Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "GOV-002"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"GOV-002"' >/dev/null; then
+            echo "GOV-002 violation is present."
+            exit 1
+          else
+            echo "No GOV-002 violation found."
+          fi
 
       - name: A.6.1 Production Approval Check
         continue-on-error: true
         run: |
-          opa eval --fail-defined --format pretty \
+          if opa eval --format pretty \
             --data policies/ai-lifecycle-governance.rego \
             --input "${{ steps.scenario.outputs.input }}" \
-            'data.ai.lifecycle.governance.deny[_].id == "GOV-003"'
+            'data.ai.lifecycle.governance.deny[_].id' | grep -F '"GOV-003"' >/dev/null; then
+            echo "GOV-003 violation is present."
+            exit 1
+          else
+            echo "No GOV-003 violation found."
+          fi
 
       - name: Gate Decision - Enforce Policy-as-Code Deployment Check
         run: node scripts/pac-deployment-check.mjs "${{ steps.scenario.outputs.input }}"
